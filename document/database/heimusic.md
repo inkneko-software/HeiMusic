@@ -13,7 +13,7 @@ CREATE TABLE user_detail(
     username VARCHAR(20) NOT NULL,
     email VARCHAR(30),
     avatar_url VARCHAR(255) NOT NULL,
-    birth DATETIME NOT NULL,
+    birth DATETIME,
     gender CHAR(1),
     sign VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
