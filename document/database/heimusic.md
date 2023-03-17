@@ -10,7 +10,7 @@ HeiMusic 音乐数据库
 ```mysql
 CREATE TABLE user_detail(
 	user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(20) NOT NULL,
+    username VARCHAR(20),
     email VARCHAR(30),
     avatar_url VARCHAR(255) NOT NULL,
     birth DATETIME,
