@@ -46,7 +46,8 @@ CREATE TABLE music_artist(
     avatar_url VARCHAR(100),
     birth DATETIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE(name) COMMENT '重名的歌手，应当进行备注，如李华（2013）、李华（2020），不过一般火的艺人基本没重名的，用艺名'
 )Engine=InnoDB default charset=utf8mb4;
 ```
 
