@@ -7,7 +7,11 @@ MinIO部署文档
 
 ```
 mkdir /mnt/heimusic/
-   
+
+#使用docker-compose启动服务
+docker compose up -d
+
+#或命令
 docker run \
    -d \
    -p 127.0.0.1:9000:9000 \
@@ -17,8 +21,6 @@ docker run \
    -e "MINIO_ROOT_USER=user" \
    -e "MINIO_ROOT_PASSWORD=password" \
    -e "TZ='Asia/Shanghai'" \
-   -e "MINIO_SERVER_URL=https://example.com" \
-   -e "MINIO_BROWSER_REDIRECT_URL=https://c.example.com" \
    quay.io/minio/minio server /data --console-address ":9090"
 ```
 
@@ -45,7 +47,6 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Host $http_host;
 
     proxy_connect_timeout 300;
     # Default is HTTP/1, keepalive is only enabled in HTTP/1.1
@@ -78,7 +79,6 @@ server {
     client_body_buffer_size 16M;
     proxy_set_header Upgrade    $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
-    proxy_set_header Host       $host;
   }
 }
 
