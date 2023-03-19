@@ -39,6 +39,11 @@ public class AuthServiceImpl implements AuthService {
     SecureRandom secureRandom;
     AsyncMailSender asyncMailSender;
     HeiMusicConfig heiMusicConfig;
+    RMapCache<String, Integer> sessionIdMap;
+
+
+    RMapCache<Integer, List<String>> uidSessionIdsMap;
+
 
     public AuthServiceImpl(RedissonClient redissonClient,
                            UserAuthMapper userAuthMapper,
@@ -51,6 +56,9 @@ public class AuthServiceImpl implements AuthService {
         secureRandom = new SecureRandom();
         this.asyncMailSender = asyncMailSender;
         this.heiMusicConfig = heiMusicConfig;
+
+        uidSessionIdsMap  = redissonClient.getMapCache("auth_uid_sessionIds");
+        sessionIdMap =  redissonClient.getMapCache("auth_session_uid");;
     }
 
     /**
@@ -83,10 +91,15 @@ public class AuthServiceImpl implements AuthService {
         if (auth == null){
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
         }
-        RMapCache<String, Integer> sessionIdMap = redissonClient.getMapCache("auth_sessionid");
         if (!genAuthHash(oldPassword, auth.getAuthSalt()).equals(auth.getAuthHash())){
             throw new ServiceException(AuthServiceErrorCode.PASSWORD_INCORRECT);
         }
+        return updatePassword(userId, newPassword);
+    }
+
+    @Override
+    public String updatePassword(Integer userId, String newPassword) {
+        UserAuth auth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, userId));
         auth.setAuthHash(genAuthHash(newPassword, auth.getAuthSalt()));
         userAuthMapper.updateById(auth);
         String sessionId = genSessionId(auth.getUserId(), auth.getAuthHash());
@@ -95,21 +108,22 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String updatePassword(Integer userId, String newPassword) {
-        return null;
-    }
+    public void logout(Integer userId, String sessionId) {
 
-    @Override
-    public void logout(Integer userId, String token) {
-        RMapCache<String, Integer> sessionIdMap = redissonClient.getMapCache("auth_sessionid");
-        if (sessionIdMap.get(token).equals(userId)) {
-            sessionIdMap.remove(token);
+        if (sessionIdMap.get(sessionId).equals(userId)) {
+            sessionIdMap.remove(sessionId);
+            List<String> sessionIds =  uidSessionIdsMap.get(userId);
+            sessionIds.remove(sessionId);
+            uidSessionIdsMap.put(userId, sessionIds);
         }
     }
 
     @Override
     public void logout(Integer uid){
-
+        List<String> sessionIds =  uidSessionIdsMap.get(uid);
+        for(String sessionId: sessionIds){
+            sessionIdMap.remove(sessionId);
+        }
     }
 
     @Override
@@ -179,7 +193,6 @@ public class AuthServiceImpl implements AuthService {
         String authHash = userAuth.getAuthHash();
         String sessionIdHashed = genSessionId(uid, userAuth.getAuthHash());
 
-        RMapCache<String, Integer> sessionIdMap = redissonClient.getMapCache("auth_sessionid");
         sessionIdMap.putIfAbsent(sessionIdHashed, uid, 180, TimeUnit.DAYS);
         return new Pair<>(userAuth.getUserId(), sessionIdHashed);
     }
@@ -195,7 +208,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Integer findUserIdBySessionId(String sessionId) {
-        RMapCache<String, Integer> sessionIdMap = redissonClient.getMapCache("auth_sessionid");
         return sessionIdMap.get(sessionId);
     }
 }

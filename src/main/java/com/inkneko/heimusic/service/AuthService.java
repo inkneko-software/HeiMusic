@@ -14,7 +14,7 @@ public interface AuthService {
      *
      * @param userId      用户id
      * @param newPassword 新密码
-     * @return 新token
+     * @return 新sessionId
      */
     String updatePassword(Integer userId, String newPassword) throws ServiceException;
 
@@ -23,7 +23,7 @@ public interface AuthService {
      * @param userId 用户id
      * @param oldPassword 当前使用的密码
      * @param newPassword 新密码
-     * @return 新token
+     * @return 新sessionId
      * @throws ServiceException 业务异常
      */
     String updatePasswordWithOldPassword(Integer userId, String oldPassword, String newPassword) throws ServiceException;
@@ -32,9 +32,9 @@ public interface AuthService {
      * 登出
      *
      * @param userId 用户id
-     * @param token  与之对应的token
+     * @param sessionId  与之对应的sessionId
      */
-    void logout(Integer userId, String token) throws ServiceException;
+    void logout(Integer userId, String sessionId) throws ServiceException;
 
     /**
      * 退出当前uid的所有session
@@ -97,8 +97,8 @@ public interface AuthService {
     /**
      * 根据SessionId查询UserId
      *
-     * @param sessionId
-     * @return
+     * @param sessionId sessionId
+     * @return 其所属userId
      */
     Integer findUserIdBySessionId(String sessionId);
 
