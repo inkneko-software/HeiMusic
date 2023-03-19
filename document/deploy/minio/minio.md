@@ -5,23 +5,13 @@ MinIO部署文档
 
 数据保存至：/mnt/heimusic
 
+注：如果进行本地测试部署时，example.com的地址解析为127.0.0.1，则可将compose文件中的网络模式设置为host，即`network_mode: "host"`
+
 ```
 mkdir /mnt/heimusic/
 
 #使用docker-compose启动服务
 docker compose up -d
-
-#或命令
-docker run \
-   -d \
-   -p 127.0.0.1:9000:9000 \
-   -p 127.0.0.1:9090:9090 \
-   --name minio \
-   -v /mnt/heimusic:/data \
-   -e "MINIO_ROOT_USER=user" \
-   -e "MINIO_ROOT_PASSWORD=password" \
-   -e "TZ='Asia/Shanghai'" \
-   quay.io/minio/minio server /data --console-address ":9090"
 ```
 
 nginx转发
@@ -47,6 +37,7 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $http_host;
 
     proxy_connect_timeout 300;
     # Default is HTTP/1, keepalive is only enabled in HTTP/1.1
@@ -79,6 +70,7 @@ server {
     client_body_buffer_size 16M;
     proxy_set_header Upgrade    $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $http_host;
   }
 }
 
