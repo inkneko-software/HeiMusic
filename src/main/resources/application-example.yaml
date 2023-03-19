@@ -36,7 +36,10 @@ logging:
     root: info
 
 heimusic:
+  domain: example.com
   minio:
     endpoint: https://example.com
     accessKey: example
     secretKey: example
+  redis:
+    url: redis://127.0.0.1:6379

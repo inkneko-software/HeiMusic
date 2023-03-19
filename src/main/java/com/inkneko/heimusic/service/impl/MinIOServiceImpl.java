@@ -26,7 +26,6 @@ public class MinIOServiceImpl implements MinIOService {
     @Autowired
     public MinIOServiceImpl(MinIOConfig minIOConfig) {
         this.minioConfig = minIOConfig;
-        System.out.println(minioConfig.getEndpoint());
         minioClient = MinioClient.builder().endpoint(minioConfig.getEndpoint()).credentials(minioConfig.getAccessKey(), minioConfig.getSecretKey()).build();
     }
 

@@ -6,7 +6,7 @@ import lombok.Data;
 /**
  * 业务层异常
  */
-public class ServiceException extends Exception{
+public class ServiceException extends RuntimeException{
     private final ErrorCode errorCode;
 
     public ServiceException(ErrorCode errorCode){

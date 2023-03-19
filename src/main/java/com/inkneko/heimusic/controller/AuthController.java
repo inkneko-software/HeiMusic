@@ -1,53 +1,75 @@
 package com.inkneko.heimusic.controller;
 
-import com.inkneko.heimusic.exception.ServiceException;
+import com.inkneko.heimusic.config.HeiMusicConfig;
+import com.inkneko.heimusic.errorcode.AuthServiceErrorCode;
+import com.inkneko.heimusic.model.dto.ResponseDto;
 import com.inkneko.heimusic.service.AuthService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
+import javafx.util.Pair;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@Validated
 public class AuthController {
 
-    @Autowired
     AuthService authService;
+    HeiMusicConfig heiMusicConfig;
 
-    @RequestMapping(value = "/helloworld")
-    public String helloWorld(HttpServletRequest request){
-        Integer uid =(Integer)request.getAttribute("uid");
-        if (uid != null){
-            return "hello user uid=" + uid;
+    public AuthController(AuthService authService, HeiMusicConfig heiMusicConfig) {
+        this.authService = authService;
+        this.heiMusicConfig = heiMusicConfig;
+    }
+
+    @PostMapping(value = "/sendLoginEmailCode")
+    public ResponseDto sendLoginEmailCode(@RequestParam @Email(message = "邮箱格式不正确") String email){
+        authService.sendLoginEmail(email);
+        return new ResponseDto(0, "邮件发送成功");
+    }
+
+    @RequestMapping(value = "/login")
+    public ResponseDto login(@RequestParam @NotBlank(message = "邮箱不能为空") String email,
+                             @RequestParam(required = false) String code,
+                             @RequestParam(required = false) String password,
+                             @RequestParam(required = false) Boolean client,
+                             HttpServletResponse response) {
+        Pair<Integer, String> pair;
+
+        if (code != null){
+            pair = authService.loginByEmailCode(email,code);
+        }else if (password != null){
+            pair = authService.login(email, password);
+        }else {
+            return new ResponseDto(AuthServiceErrorCode.PASSWORD_CODE_NOT_PROVIDED);
         }
 
-        return "hello  world";
-    }
+        if (client == null || !client){
+            Cookie cookieSessionId = new Cookie("sessionId", pair.getValue());
+            cookieSessionId.setDomain(heiMusicConfig.getDomain());
+            cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
+            cookieSessionId.setHttpOnly(true);
+            cookieSessionId.setPath("/");
+            Cookie cookieUserId = new Cookie("userId", String.valueOf(pair.getKey()));
+            cookieUserId.setDomain(heiMusicConfig.getDomain());
+            cookieUserId.setMaxAge(60 * 60 * 24 * 180);
+            cookieUserId.setHttpOnly(true);
+            cookieUserId.setPath("/");
 
-    @RequestMapping(value="/users/{id}", method = RequestMethod.GET)
-    @ResponseBody
-    public String get(@PathVariable Integer id){
-        return "your user: " + id;
-    }
+            response.addCookie(cookieSessionId);
+            response.addCookie(cookieUserId);
 
-    @RequestMapping("/sendRegisterEmail")
-    public Map<String, Object> sendRegisterEmail(@RequestParam String email){
-        Map<String, Object> resp = new HashMap<>();
-        try {
-            authService.sendRegisterEmail(email);
-
-        } catch (ServiceException e) {
-            resp.put("code", 500);
-            resp.put("msg", e.getMessage());
-            return resp ;
+            return new ResponseDto(0, "登录成功");
         }
-        resp.put("code", 200);
-        resp.put("msg", "验证码已发送到邮箱");
-        return resp;
+        Map<String, String> auth = new HashMap<>();
+        auth.put("userId", pair.getKey().toString());
+        auth.put("sessionId", pair.getValue());
+        return new ResponseDto(0, "登录成功", auth);
     }
-
 }

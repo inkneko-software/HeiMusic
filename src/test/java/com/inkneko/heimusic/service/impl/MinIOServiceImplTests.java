@@ -21,11 +21,11 @@ public class MinIOServiceImplTests {
 
     @Test
     void getUploadUrlTestCase(){
-        System.out.println(minIOService.getUploadUrl("heimusic", "uid-timestamp-fileid.bin"));
+        //System.out.println(minIOService.getUploadUrl("heimusic", "uid-timestamp-fileid.bin"));
     }
 
     @Test
     void getDownloadUrlTestCase(){
-        System.out.println(minIOService.getDownloadUrl("heimusic", "uid-timestamp-fileid.bin"));
+        //System.out.println(minIOService.getDownloadUrl("heimusic", "uid-timestamp-fileid.bin"));
     }
 }
