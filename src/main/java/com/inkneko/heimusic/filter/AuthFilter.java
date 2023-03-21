@@ -27,31 +27,29 @@ public class AuthFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        HttpServletRequest req = (HttpServletRequest)servletRequest;
-        String uid = null ;
-        String sessionId = null;
-        //获取客户端发送的uid与sessionId，Cookie优先级更高
+        HttpServletRequest req = (HttpServletRequest) servletRequest;
+
         Cookie[] cookies = req.getCookies();
-        if (cookies != null){
-            Optional<Cookie> uidCookie = Arrays.stream(cookies).filter(t->"userId".equals(t.getName())).findFirst();
-            Optional<Cookie> sessionIdCookie = Arrays.stream(cookies).filter(t->"sessionId".equals(t.getName())).findFirst();
-            if (uidCookie.isPresent() && sessionIdCookie.isPresent()){
-                uid = uidCookie.get().getValue();
-                sessionId = sessionIdCookie.get().getValue();
-            }
-        }else{
-            uid = ((HttpServletRequest) servletRequest).getHeader("x-heimusic-auth-uid");
-            sessionId = ((HttpServletRequest) servletRequest).getHeader("x-heimusic-auth-sid");
-        }
+        if (cookies != null) {
+            //fixme: 改成一次循环
+            Optional<Cookie> uidCookie = Arrays.stream(cookies).filter(t -> "userId".equals(t.getName())).findFirst();
+            Optional<Cookie> sessionIdCookie = Arrays.stream(cookies).filter(t -> "sessionId".equals(t.getName())).findFirst();
+            if (uidCookie.isPresent() && sessionIdCookie.isPresent()) {
+                String uid = uidCookie.get().getValue();
+                String sessionId = sessionIdCookie.get().getValue();
+                if (uid != null && sessionId != null) {
+                    Integer matchedUid = authService.findUserIdBySessionId(sessionId);
+                    if (matchedUid != null && uid.equals(matchedUid.toString())) {
+                        try {
+                            servletRequest.setAttribute("userId", Integer.parseInt(uid));
+                            servletRequest.setAttribute("sessionId", sessionId);
+                        } catch (Exception ignored) {
 
-        if (uid != null && sessionId != null){
-            Integer matchedUid = authService.findUserIdBySessionId(sessionId);
-            if (matchedUid != null && uid.equals(matchedUid.toString())){
-                servletRequest.setAttribute("uid", Integer.parseInt(uid));
-                servletRequest.setAttribute("sessionId", sessionId);
+                        }
+                    }
+                }
             }
         }
-
         filterChain.doFilter(servletRequest, servletResponse);
     }
 

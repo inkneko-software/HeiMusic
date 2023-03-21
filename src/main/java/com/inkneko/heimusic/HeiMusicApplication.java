@@ -1,5 +1,6 @@
 package com.inkneko.heimusic;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -19,10 +20,10 @@ public class HeiMusicApplication {
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/**")
-                        .allowedHeaders("x-heimusic-auth-uid", "x-heimusic-auth-sid")
-                        .allowedOrigins("http://localhost:8888","app://.");
+            public void addCorsMappings(@NotNull CorsRegistry registry) {
+//                registry.addMapping("/api/**")
+//                        .allowedHeaders("x-heimusic-auth-userid", "x-heimusic-auth-sessionid")
+//                        .allowedOrigins("http://localhost:8888","app://.");
             }
         };
     }
