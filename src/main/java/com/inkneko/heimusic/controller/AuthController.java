@@ -7,8 +7,10 @@ import com.inkneko.heimusic.service.AuthService;
 import javafx.util.Pair;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
 
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
@@ -29,9 +31,48 @@ public class AuthController {
     }
 
     @PostMapping(value = "/sendLoginEmailCode")
-    public ResponseDto sendLoginEmailCode(@RequestParam @Email(message = "邮箱格式不正确") String email){
+    public ResponseDto sendLoginEmailCode(@RequestParam @Email(message = "邮箱格式不正确") String email) {
         authService.sendLoginEmail(email);
         return new ResponseDto(0, "邮件发送成功");
+    }
+
+    @PostMapping(value = "/sendPasswordResetEmailCode")
+    public ResponseDto sendPasswordResetEmailCode(@RequestParam(required = false) String email, HttpServletRequest request) {
+        if (email == null) {
+            Integer userId = (Integer) request.getAttribute("userId");
+            if (userId == null) {
+                return new ResponseDto(403, "请先登录");
+            }
+            authService.sendPasswordResetEmail(userId);
+        } else {
+            authService.sendPasswordResetEmail(email);
+        }
+
+        return new ResponseDto(0, "发送成功");
+    }
+
+    @PostMapping(value = "/resetPassword")
+    public ResponseDto resetPassword(@RequestParam String password,
+                                     @RequestParam String emailCode,
+                                     HttpServletRequest request,
+                                     HttpServletResponse response) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        String newSessionId = authService.updatePasswordWithEmailCode(userId, emailCode, password);
+
+        Cookie cookieSessionId = new Cookie("sessionId", newSessionId);
+        cookieSessionId.setDomain(heiMusicConfig.getDomain());
+        cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
+        cookieSessionId.setHttpOnly(true);
+        cookieSessionId.setPath("/");
+        Cookie cookieUserId = new Cookie("userId", String.valueOf(userId));
+        cookieUserId.setDomain(heiMusicConfig.getDomain());
+        cookieUserId.setMaxAge(60 * 60 * 24 * 180);
+        cookieUserId.setHttpOnly(true);
+        cookieUserId.setPath("/");
+
+        response.addCookie(cookieSessionId);
+        response.addCookie(cookieUserId);
+        return new ResponseDto(0, "密码已更新");
     }
 
     @RequestMapping(value = "/login")
@@ -42,34 +83,29 @@ public class AuthController {
                              HttpServletResponse response) {
         Pair<Integer, String> pair;
 
-        if (code != null){
-            pair = authService.loginByEmailCode(email,code);
-        }else if (password != null){
+        if (code != null) {
+            pair = authService.loginByEmailCode(email, code);
+        } else if (password != null) {
             pair = authService.login(email, password);
-        }else {
+        } else {
             return new ResponseDto(AuthServiceErrorCode.PASSWORD_CODE_NOT_PROVIDED);
         }
 
-        if (client == null || !client){
-            Cookie cookieSessionId = new Cookie("sessionId", pair.getValue());
-            cookieSessionId.setDomain(heiMusicConfig.getDomain());
-            cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
-            cookieSessionId.setHttpOnly(true);
-            cookieSessionId.setPath("/");
-            Cookie cookieUserId = new Cookie("userId", String.valueOf(pair.getKey()));
-            cookieUserId.setDomain(heiMusicConfig.getDomain());
-            cookieUserId.setMaxAge(60 * 60 * 24 * 180);
-            cookieUserId.setHttpOnly(true);
-            cookieUserId.setPath("/");
 
-            response.addCookie(cookieSessionId);
-            response.addCookie(cookieUserId);
+        Cookie cookieSessionId = new Cookie("sessionId", pair.getValue());
+        cookieSessionId.setDomain(heiMusicConfig.getDomain());
+        cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
+        cookieSessionId.setHttpOnly(true);
+        cookieSessionId.setPath("/");
+        Cookie cookieUserId = new Cookie("userId", String.valueOf(pair.getKey()));
+        cookieUserId.setDomain(heiMusicConfig.getDomain());
+        cookieUserId.setMaxAge(60 * 60 * 24 * 180);
+        cookieUserId.setHttpOnly(true);
+        cookieUserId.setPath("/");
 
-            return new ResponseDto(0, "登录成功");
-        }
-        Map<String, String> auth = new HashMap<>();
-        auth.put("userId", pair.getKey().toString());
-        auth.put("sessionId", pair.getValue());
-        return new ResponseDto(0, "登录成功", auth);
+        response.addCookie(cookieSessionId);
+        response.addCookie(cookieUserId);
+
+        return new ResponseDto(0, "登录成功");
     }
 }

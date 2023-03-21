@@ -19,6 +19,27 @@ public interface AuthService {
     String updatePassword(Integer userId, String newPassword) throws ServiceException;
 
     /**
+     * 更新密码
+     * @param userId 用户id
+     * @param emailCode 验证码
+     * @param newPassword 新密码
+     * @return 新sessionId
+     */
+    String updatePasswordWithEmailCode(Integer userId, String emailCode, String newPassword) throws ServiceException;
+
+    /**
+     * 发送密码重置验证码
+     * @param email 邮箱
+     */
+    void sendPasswordResetEmail(String email) throws ServiceException;
+
+    /**
+     * 向用户绑定邮箱发送密码重置验证码
+     * @param userId 用户id
+     */
+    void sendPasswordResetEmail(Integer userId) throws ServiceException;
+
+    /**
      * 更新密码，需提供当前使用的密码
      * @param userId 用户id
      * @param oldPassword 当前使用的密码
