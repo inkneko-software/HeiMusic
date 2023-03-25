@@ -1,0 +1,20 @@
+version: '3.3'
+services:
+  rclone-mount:
+    restart: always
+    volumes:
+      - '/etc/rclone:/config/rclone'
+      - '/mnt/heimusic/minio:/mnt/heimusic/minio:shared'
+    environment:
+      - TZ=Asia/Shanghai
+    user: 0:0
+    container_name: rclone-mount
+    image: 'rclone/rclone'
+    network_mode: 'host'
+    devices:
+      - /dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    command: 'mount alist:/your_storage_path/ /mnt/heimusic/minio --allow-non-empty --vfs-cache-mode full'
