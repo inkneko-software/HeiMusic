@@ -1,5 +1,5 @@
 HeiMusic 音乐数据库
----
+-------------------
 
 数据库名称：`heimusic`
 
@@ -9,7 +9,7 @@ HeiMusic 音乐数据库
 
 ```mysql
 CREATE TABLE user_detail(
-	user_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(20),
     email VARCHAR(30),
     avatar_url VARCHAR(255) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE user_detail(
 
 ```mysql
 CREATE TABLE user_auth(
-	user_id INT PRIMARY KEY,
+    user_id INT PRIMARY KEY,
     auth_hash CHAR(64),
     auth_salt CHAR(32),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -38,13 +38,13 @@ CREATE TABLE user_auth(
 
 ### 艺术家信息
 
-```mysql
+```sql
 CREATE TABLE music_artist(
-	artist_id INT PRIMARY KEY AUTO_INCREMENT,
+    artist_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL,
     translate_name VARCHAR(50),
     avatar_url VARCHAR(100),
-    birth DATETIME,
+    birth DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE(name) COMMENT '重名的歌手，应当进行备注，如李华（2013）、李华（2020），不过一般火的艺人基本没重名的，用艺名'
@@ -55,7 +55,7 @@ CREATE TABLE music_artist(
 
 ```mysql
 CREATE TABLE music_album(
-	album_id INT PRIMARY KEY AUTO_INCREMENT,
+    album_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL,
     translate_name VARCHAR(50),
     front_cover_url VARCHAR(255),
@@ -69,7 +69,7 @@ CREATE TABLE music_album(
 
 ```mysql
 CREATE TABLE music_album_artist(
-	album_id INT, 
+    album_id INT, 
     artist_id INT,
     PRIMARY KEY(album_id, artist_id)
 )Engine=InnoDB default charset=utf8mb4;
@@ -79,7 +79,7 @@ CREATE TABLE music_album_artist(
 
 ```mysql
 CREATE TABLE music_detail(
-	music_id INT PRIMARY KEY AUTO_INCREMENT,
+    music_id INT PRIMARY KEY AUTO_INCREMENT,
     album_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     resource_path VARCHAR(255),
@@ -94,10 +94,10 @@ CREATE TABLE music_detail(
 
 ### 音乐文件信息
 
-```mysql
+```sql
 CREATE TABLE music_resource(
     music_resource_id INT PRIMARY KEY AUTO_INCREMENT,
-	music_id INT NOT NULL,
+    music_id INT NOT NULL,
     codec VARCHAR(20),
     bitrate INT,
     bitrate_str VARCHAR(20),
