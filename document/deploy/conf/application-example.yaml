@@ -1,0 +1,76 @@
+server:
+  port: 9001
+spring:
+  datasource:
+    druid:
+      url: jdbc:mysql://mysql:3306/heimusic?serverTimezone=UTC
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: 修改此处_数据库账户
+      password: 修改此处_数据库密码
+  redis:
+    host: redis
+    port: 6379
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    user: guest
+    password: guest
+  mail:
+    host: 修改此处_smtp.example.com
+    port: 587
+    username: heimusic@example.com
+    password: example_password
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          #请自行根据邮局指定加密方式，如下为微软outlook所需的starttls协议
+#          starttls:
+#            enable: true
+  servlet:
+    multipart:
+      max-file-size: 4096MB
+      max-request-size: 4096MB
+
+logging:
+  level:
+    root: info
+
+mybatis-plus:
+  #  global-config:
+  #    db-config:
+  #      table-prefix: tb_
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+heimusic:
+  domain: localhost
+  mail:
+    from: "HeiMusic <heimusic@example.com>"
+  minio:
+    endpoint: http://example.com
+    accessKey: example_ak
+    secretKey: example_sk
+  redis:
+    url: "redis://redis:6379"
+  is-encode-node: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.inkneko.heimusic.controller
+
+# knife4j的增强配置，不需要增强可以不配
+knife4j:
+  enable: false
+  setting:
+    language: zh_cn

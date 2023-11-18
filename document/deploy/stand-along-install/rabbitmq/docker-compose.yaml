@@ -1,0 +1,14 @@
+---
+version: "2.1"
+services:
+  rabbitmq:
+    container_name: heimusic-rabbitmq-server
+    hostname: rabbitmq-server
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER = changeme
+      - RABBITMQ_DEFAULT_PASS = orleak
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always

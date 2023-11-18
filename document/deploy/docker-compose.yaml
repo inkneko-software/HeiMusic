@@ -1,0 +1,55 @@
+---
+version: "2.1"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: heimusic-rabbitmq
+    hostname: rabbitmq-server
+    environment:
+      - RABBITMQ_DEFAULT_USER = guest
+      - RABBITMQ_DEFAULT_PASS = guest
+    restart: unless-stopped
+    # ports:
+    #  - "5672:5672"
+    #  - "15672:15672"
+  mysql:
+    container_name: heimusic-mysql
+    image: mysql:8.0.28-debian
+    restart: unless-stopped
+    volumes:
+      - ./mysql-initdb.d:/docker-entrypoint-initdb.d
+      - ./mysql:/var/lib/mysql
+    # ports:
+    #   - "127.0.0.1:3306:3306"
+    # 如果想要指定root密码，请取消下面的注释
+    environment:
+      - MYSQL_RANDOM_ROOT_PASSWORD=YES
+    # - MYSQL_ROOT_PASSWORD: example
+
+  redis:
+    image: redis:latest
+    container_name: heimusic-redis
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: heimusic-minio
+    command: [ "server", "/data", "--console-address", ":9090" ]
+    environment:
+      - MINIO_ROOT_USER=user
+      - MINIO_ROOT_PASSWORD=password
+      - TZ=Asia/Shanghai
+#      - MINIO_BROWSER_REDIRECT_URL=http://c.example.com
+    volumes:
+      - /mnt/heimusic-minio:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9090:9090"
+    restart: always
+  app:
+    image: leaflxh/heimusic:0.0.1.1
+    container_name: heimusic-server
+    command: [ "java", "-jar", "/app/heimusic-server.jar", "spring.config.location=/conf/" ]
+    volumes:
+      - ./conf:/conf
+    ports:
+      - "127.0.0.1:9001:9001"
+    restart: unless-stopped

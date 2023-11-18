@@ -1,0 +1,13 @@
+---
+version: "2.1"
+services:
+  minio:
+    image: leaflxh/heimusic:0.0.1.1
+    container_name: heimusic-server
+    command: ["java", "-jar", "/app/heimusic-server.jar", "spring.config.location=/conf/application.yml"]
+    volumes:
+      - /path/to/conf:/conf
+    ports:
+      - "127.0.0.1:9001:9001"
+    restart: unless-stopped
+    #network_mode: "host"
