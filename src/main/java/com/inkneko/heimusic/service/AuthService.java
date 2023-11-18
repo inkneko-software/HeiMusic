@@ -3,12 +3,62 @@ package com.inkneko.heimusic.service;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.entity.UserAuth;
 import com.inkneko.heimusic.model.entity.UserDetail;
-import javafx.util.Pair;
+
+import java.util.Map;
 
 /**
  * 认证服务
  */
 public interface AuthService {
+
+    /**
+     * 根据参数进行注册，注册成功则userDetail.userId为用户id
+     *
+     * @param userDetail 用户信息
+     * @param code       邮箱验证码
+     * @throws ServiceException 业务异常
+     */
+    void register(UserDetail userDetail, String code) throws ServiceException;
+
+    /**
+     * 创建管理账户
+     * @param email 邮箱
+     * @param password 密码
+     * @throws ServiceException 业务异常
+     */
+    void createRootAccount(String email, String password) throws ServiceException;
+
+    /**
+     * 查询是否为管理账户
+     * @param userId 用户id
+     * @return 返回是否为管理账户
+     */
+    boolean isRootAccount(Integer userId);
+
+    /**
+     * 检查是否存在管理账户
+     *
+     * @return 返回是否存在
+     * @throws ServiceException 业务异常
+     */
+    boolean isRootAccountExists() throws ServiceException;
+
+    /**
+     * 检查邮箱是否注册
+     *
+     * @param email 邮箱
+     * @return 邮箱是否已注册
+     */
+    boolean isEmailRegistered(String email) throws ServiceException;
+
+    /**
+     * 发送注册邮件至指定邮箱
+     *
+     * @param email 邮箱
+     * @throws ServiceException 业务异常
+     */
+    void sendRegisterEmail(String email) throws ServiceException;
+
     /**
      * 更新密码
      *
@@ -71,7 +121,7 @@ public interface AuthService {
      * @return 若登录成功，返回(uid, sessionId)
      * @exception ServiceException 业务异常
      */
-    Pair<Integer, String>  login(String email, String password) throws ServiceException;
+    Map.Entry<Integer, String>  login(String email, String password) throws ServiceException;
 
     /**
      * 登录
@@ -80,7 +130,7 @@ public interface AuthService {
      * @param password 密码
      * @return 若登录成功，返回(uid, sessionId)
      */
-    Pair<Integer, String> login(Integer uid, String password) throws ServiceException;
+    Map.Entry<Integer, String> login(Integer uid, String password) throws ServiceException;
 
     /**
      * 通过邮箱验证码登录
@@ -89,7 +139,7 @@ public interface AuthService {
      * @param code  验证码
      * @return 若登录成功，返回(uid, sessionId)
      */
-    Pair<Integer, String>  loginByEmailCode(String email, String code) throws ServiceException;
+    Map.Entry<Integer, String>  loginByEmailCode(String email, String code) throws ServiceException;
 
     /**
      * 发送登录验证码
@@ -105,7 +155,7 @@ public interface AuthService {
      * @param uid 用户id
      * @return 若登录成功，返回(uid, sessionId)
      */
-    Pair<Integer, String>  login(Integer uid) throws ServiceException;
+    Map.Entry<Integer, String>  login(Integer uid) throws ServiceException;
 
     /**
      * 新建用户认证

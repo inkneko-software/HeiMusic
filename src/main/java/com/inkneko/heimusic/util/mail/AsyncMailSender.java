@@ -56,8 +56,9 @@ public class AsyncMailSender {
             helper.setText(text, html);
 
             javaMailSender.send(message);
-        } catch (MailException | MessagingException ignored) {
-            logger.info("failed sending email to {}",to);
+
+        } catch (MailException | MessagingException e) {
+            logger.info("failed sending email to {}，msg: {}",to, e.getMessage());
         }
     }
 }

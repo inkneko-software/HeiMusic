@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 public class MinIOConfig {
     @Value("${heimusic.minio.endpoint}")
     String endpoint;
+    @Value("${heimusic.minio.region}")
+    String region;
     @Value("${heimusic.minio.accessKey}")
     String accessKey;
     @Value("${heimusic.minio.secretKey}")

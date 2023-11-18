@@ -3,51 +3,50 @@ package com.inkneko.heimusic.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.errorcode.AuthServiceErrorCode;
-import com.inkneko.heimusic.errorcode.UserServiceErrorCode;
+import com.inkneko.heimusic.errorcode.AuthServiceErrorCode;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.mapper.UserAuthMapper;
 import com.inkneko.heimusic.mapper.UserDetailMapper;
+import com.inkneko.heimusic.mapper.UserRoleMapper;
 import com.inkneko.heimusic.model.entity.UserAuth;
 import com.inkneko.heimusic.model.entity.UserDetail;
+import com.inkneko.heimusic.model.entity.UserRole;
 import com.inkneko.heimusic.service.AuthService;
 import com.inkneko.heimusic.service.UserService;
 import com.inkneko.heimusic.util.mail.AsyncMailSender;
-import javafx.util.Pair;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.redisson.api.RKeys;
-import org.redisson.api.RMap;
 import org.redisson.api.RMapCache;
 import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    RedissonClient redissonClient;
-    UserAuthMapper userAuthMapper;
-    UserDetailMapper userDetailMapper;
-    SecureRandom secureRandom;
-    AsyncMailSender asyncMailSender;
-    HeiMusicConfig heiMusicConfig;
+    private final RedissonClient redissonClient;
+    private final UserAuthMapper userAuthMapper;
+    private final UserDetailMapper userDetailMapper;
+    private final SecureRandom secureRandom;
+    private final AsyncMailSender asyncMailSender;
+    private final UserRoleMapper userRoleMapper;
+    private final HeiMusicConfig heiMusicConfig;
     //redis maps:
-    RMapCache<String, Integer> sessionIdMap;
-    RMapCache<Integer, List<String>> uidSessionIdsMap;
-    RMapCache<String, String> emailLoginCodeMap;
-    RMapCache<String, String> emailPasswordResetCodeMap;
+    private final RMapCache<String, Integer> sessionIdMap;
+    private final RMapCache<Integer, List<String>> uidSessionIdsMap;
+    private final RMapCache<String, String> emailLoginCodeMap;
+    private final  RMapCache<String, String> emailPasswordResetCodeMap;
+
 
     public AuthServiceImpl(RedissonClient redissonClient,
                            UserAuthMapper userAuthMapper,
                            UserDetailMapper userDetailMapper,
+                           UserRoleMapper userRoleMapper,
                            AsyncMailSender asyncMailSender,
                            HeiMusicConfig heiMusicConfig) {
         this.redissonClient = redissonClient;
@@ -56,11 +55,121 @@ public class AuthServiceImpl implements AuthService {
         secureRandom = new SecureRandom();
         this.asyncMailSender = asyncMailSender;
         this.heiMusicConfig = heiMusicConfig;
+        this.userRoleMapper = userRoleMapper;
 
         uidSessionIdsMap  = redissonClient.getMapCache("auth_uid_sessionIds");
         sessionIdMap =  redissonClient.getMapCache("auth_session_uid");;
         emailLoginCodeMap = redissonClient.getMapCache("auth_email_login_code");
         emailPasswordResetCodeMap = redissonClient.getMapCache("auth_email_password_reset_code");
+    }
+
+    @Override
+    public boolean isEmailRegistered(String email) throws ServiceException {
+        LambdaQueryWrapper<UserDetail> condition = new LambdaQueryWrapper<>();
+        condition.eq(UserDetail::getEmail, email);
+        return userDetailMapper.selectOne(condition) != null;
+    }
+
+    @Override
+    public void sendRegisterEmail(String targetEmail) throws ServiceException {
+        //检查是否已注册
+        LambdaQueryWrapper<UserDetail> condition = new LambdaQueryWrapper<>();
+        condition.eq(UserDetail::getEmail, targetEmail);
+        if (userDetailMapper.selectOne(condition) != null) {
+            throw new ServiceException(AuthServiceErrorCode.EMAIL_REGISTERED);
+        }
+        //检查是否在60秒内重复发送验证码
+        RMapCache<String, String> emailRegCode = redissonClient.getMapCache("email_register_code");
+        if (emailRegCode.get(targetEmail) != null) {
+            if (emailRegCode.remainTimeToLive(targetEmail) > 240 * 1000) {
+                throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_OVER_LIMIT);
+            }
+        }
+        //生成验证码并发送
+        String code = String.format("%06d", secureRandom.nextInt(1000000));
+        emailRegCode.put(targetEmail, code, 5, TimeUnit.MINUTES);
+        asyncMailSender.send(
+                "HeiMusic <heimusic@inkneko.com>",
+                targetEmail,
+                "【HeiMusic】注册验证",
+                String.format("您的注册验证码为<span style='color: #3a62bf;'>%s</span>, 5分钟内有效", code),
+                true
+        );
+    }
+
+    @Override
+    @Transactional
+    public void register(UserDetail userDetail, String code) throws ServiceException {
+        RMapCache<String, String> emailRegCode = redissonClient.getMapCache("email_register_code");
+        if (!emailRegCode.get(userDetail.getEmail()).equals(code)) {
+            throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
+        }
+        try {
+            userDetailMapper.insert(userDetail);
+
+            UserAuth userAuth = new UserAuth();
+            userAuth.setUserId(userDetail.getUserId());
+            userAuth.setAuthHash("-");
+            userAuth.setAuthSalt("-");
+            userAuthMapper.insert(userAuth);
+        } catch (DuplicateKeyException e) {
+            throw new ServiceException(AuthServiceErrorCode.EMAIL_REGISTERED);
+        }
+    }
+
+    /**
+     * 创建管理账户
+     *
+     * @param email 用户名
+     * @param password 密码
+     * @throws ServiceException 业务异常
+     */
+    @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public void createRootAccount(String email, String password) throws ServiceException {
+        //检查管理账户是否存在
+        if (isRootAccountExists()){
+            throw new ServiceException(AuthServiceErrorCode.ROOT_ACCOUNT_EXISTS);
+        }
+        //尝试创建管理账户
+        try {
+            UserDetail userDetail =new UserDetail();
+            userDetail.setUsername("neptune");
+            userDetail.setEmail(email);
+            userDetailMapper.insert(userDetail);
+
+            addUserAuth(userDetail.getUserId());
+            updatePassword(userDetail.getUserId(), password);
+            UserRole userRole = new UserRole();
+            userRole.setUserId(userDetail.getUserId());
+            userRole.setUserRole("root");
+            userRoleMapper.insert(userRole);
+        }catch (DuplicateKeyException e){
+            throw new ServiceException(AuthServiceErrorCode.EMAIL_REGISTERED);
+        }
+    }
+
+    /**
+     * 查询是否为管理账户
+     *
+     * @param userId 用户id
+     * @return 返回是否为管理账户
+     */
+    @Override
+    public boolean isRootAccount(Integer userId) {
+        UserRole userRole = userRoleMapper.selectOne(new LambdaQueryWrapper<UserRole>().eq(UserRole::getUserId, userId));
+        return userRole != null && userRole.getUserRole().compareTo("root") == 0;
+    }
+
+    /**
+     * 检查是否存在管理账户
+     *
+     * @return 返回是否存在
+     * @throws ServiceException 业务异常
+     */
+    @Override
+    public boolean isRootAccountExists() throws ServiceException {
+        return userRoleMapper.selectOne(new LambdaQueryWrapper<UserRole>().eq(UserRole::getUserRole, "root")) != null;
     }
 
     /**
@@ -109,7 +218,7 @@ public class AuthServiceImpl implements AuthService {
         if (code == null || !code.equals(emailCode)){
             throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
         }
-
+        emailPasswordResetCodeMap.remove(userDetail.getEmail(), code);
         return updatePassword(userId, newPassword);
     }
 
@@ -159,6 +268,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String updatePassword(Integer userId, String newPassword) {
         UserAuth auth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, userId));
+        auth.setAuthSalt(UUID.randomUUID().toString().substring(0, 32));
         auth.setAuthHash(genAuthHash(newPassword, auth.getAuthSalt()));
         userAuthMapper.updateById(auth);
         String sessionId = genSessionId(auth.getUserId(), auth.getAuthHash());
@@ -193,7 +303,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Pair<Integer, String>  login(String email, String password) {
+    public Map.Entry<Integer, String>  login(String email, String password) {
         UserDetail userDetail = userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, email));
         if (userDetail == null) {
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
@@ -203,7 +313,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Pair<Integer, String>  login(Integer uid, String password) {
+    public Map.Entry<Integer, String>  login(Integer uid, String password) {
         UserAuth userAuth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, uid));
         if (userAuth == null) {
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
@@ -216,20 +326,31 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Pair<Integer, String>  loginByEmailCode(String email, String code) throws ServiceException {
-        String vaildCode = emailLoginCodeMap.get(email);
-        if (vaildCode == null || !vaildCode.equals(code)) {
-            throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
+    public Map.Entry<Integer, String>  loginByEmailCode(String email, String code) throws ServiceException {
+        UserDetail userDetail = null;
+        if (userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, email)) == null) {
+            //未注册用户，直接调用UserService发送注册验证码
+            userDetail = new UserDetail();
+            userDetail.setEmail(email);
+            userDetail.setAvatarUrl("/public/images/default_avatar.jpg");
+            register(userDetail, code);
+        }else{
+            String vaildCode = emailLoginCodeMap.get(email);
+            if (vaildCode == null || !vaildCode.equals(code)) {
+                throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
+            }
+            emailLoginCodeMap.remove(email);
+            userDetail = userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, email));
         }
-        emailLoginCodeMap.remove(email);
-        UserDetail userDetail = userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, email));
         return login(userDetail.getUserId());
     }
 
     @Override
     public void sendLoginEmail(String email) throws ServiceException {
+        //未注册用户，直接调用UserService发送注册验证码
         if (userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, email)) == null) {
-            throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
+            sendRegisterEmail(email);
+            return;
         }
 
         if (emailLoginCodeMap.get(email) != null) {
@@ -248,7 +369,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Pair<Integer, String>  login(Integer uid) throws ServiceException {
+    public Map.Entry<Integer, String>  login(Integer uid) throws ServiceException {
         UserAuth userAuth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, uid));
         if (userAuth == null) {
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
@@ -263,7 +384,7 @@ public class AuthServiceImpl implements AuthService {
         }
         sessionIds.add(sessionId);
         uidSessionIdsMap.put(uid, sessionIds);
-        return new Pair<>(userAuth.getUserId(), sessionId);
+        return new AbstractMap.SimpleEntry<>(userAuth.getUserId(), sessionId);
     }
 
     @Override

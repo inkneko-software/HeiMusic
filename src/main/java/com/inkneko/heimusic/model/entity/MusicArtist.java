@@ -1,18 +1,13 @@
 package com.inkneko.heimusic.model.entity;
 
-import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-
-import java.util.Date;
+import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class MusicArtist {
-    @TableId
+    Integer musicId;
     Integer artistId;
-    String name;
-    String translateName;
-    String avatarUrl;
-    Date birth;
-    Date createdAt;
-    Date updatedAt;
 }

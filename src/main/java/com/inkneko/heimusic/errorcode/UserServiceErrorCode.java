@@ -2,9 +2,7 @@ package com.inkneko.heimusic.errorcode;
 
 
 public enum UserServiceErrorCode implements ErrorCode{
-    EMAIL_REGISTERED(2000, "邮箱已注册"),
-    EMAIL_CODE_OVER_LIMIT(2001, "邮箱验证码发送过于频繁"),
-    EMAIL_CODE_INCORRENT(2002, "邮箱验证码不正确"),
+    USER_NOT_EXISTS(2000, "用户不存在"),
     ;
 
     private final int code;

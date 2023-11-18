@@ -6,6 +6,8 @@ public enum AuthServiceErrorCode implements ErrorCode {
     EMAIL_CODE_INCORRECT(1002, "邮箱验证码不正确"),
     PASSWORD_CODE_NOT_PROVIDED(1003, "请提供密码或认证码"),
     PASSWORD_INCORRECT(1004, "密码不正确"),
+    EMAIL_REGISTERED(1005, "邮箱已注册"),
+    ROOT_ACCOUNT_EXISTS(1006, "管理账户已存在")
     ;
 
     private final int code;

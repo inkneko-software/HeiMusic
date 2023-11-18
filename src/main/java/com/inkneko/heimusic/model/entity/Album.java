@@ -1,16 +1,21 @@
 package com.inkneko.heimusic.model.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.Date;
 
 @Data
-public class MusicAlbum {
-    @TableId
+@AllArgsConstructor
+@NoArgsConstructor
+public class Album {
+    @TableId(type = IdType.AUTO)
     Integer albumId;
-    String name;
-    String translateName;
+    String title;
+    String translateTitle;
     String frontCoverUrl;
     String backCoverUrl;
     Date createdAt;
