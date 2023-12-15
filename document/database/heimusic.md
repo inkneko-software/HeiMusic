@@ -82,8 +82,8 @@ CREATE TABLE IF NOT EXISTS album(
     album_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
     translate_title VARCHAR(255),
-    front_cover_file VARCHAR(255),
-    back_cover_file VARCHAR(255),
+    front_cover_url VARCHAR(255),
+    back_cover_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP 
 )Engine=InnoDB default charset=utf8mb4;
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS music_artist(
 ```
 
 
-### 音乐文件信息
+### 音乐资源信息
 
 ```sql
 CREATE TABLE IF NOT EXISTS music_resource(
@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS playlist_subscribe(
     user_id INT NOT NULL COMMENT '收藏者用户id',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY(playlist_id, music_id)
+    PRIMARY KEY(playlist_id, user_id)
 )Engine=InnoDB default charset=utf8mb4;
 ```
 
