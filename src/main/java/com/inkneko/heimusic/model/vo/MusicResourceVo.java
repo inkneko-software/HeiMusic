@@ -6,7 +6,17 @@ import lombok.Data;
 @Data
 public class MusicResourceVo {
 
-    public MusicResourceVo(MusicResource resource){
+    private Integer musicResourceId;
+    private Integer musicId;
+    private String codec;
+    private String bitrate;
+    private String url;
 
+    public MusicResourceVo(MusicResource resource, String ossEndpoint){
+        musicResourceId = resource.getMusicResourceId();
+        musicId = resource.getMusicId();
+        codec = resource.getCodec();
+        bitrate = resource.getCodec();
+        url = String.format("%s/%s/%s", ossEndpoint, resource.getBucket(), resource.getObjectKey());
     }
 }

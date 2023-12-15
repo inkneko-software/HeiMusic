@@ -16,15 +16,24 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class RabbitMQConfig {
+    public static final String topicExchangeName = "heimusic-topic-exchange";
+
     public static class Encode {
-        public static final String topicExchangeName = "heimusic-encode-exchange";
         public static final String queueName = "encode-queue";
+        //routingKey，参数为音乐ID
+        public static final String routingKey = "encode.musicId.%s";
     }
 
     public static class Probe {
-        public static final String topicExchangeName = "heimusic-probe-exchange";
         public static final String queueName = "probe-queue";
-        public static final String routingKey = "probe.fileId.%s";
+        //routingKey，参数为音乐ID
+        public static final String routingKey = "probe.musicId.%s";
+    }
+
+    public static class Split {
+        public static final String queueName = "split-queue";
+        //routingKey，参数为音乐ID
+        public static final String routingKey = "split.musicId.%s";
     }
 
     @Value("${heimusic.is-encode-node}")
@@ -36,18 +45,19 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    TopicExchange rabbitMQExchange() {
+        return new TopicExchange(topicExchangeName);
+    }
+
+    @Bean
     Queue encodeQueue() {
         return new Queue(Encode.queueName, true);
     }
 
-    @Bean
-    TopicExchange encodeExchange() {
-        return new TopicExchange(Encode.topicExchangeName);
-    }
 
     @Bean
-    Binding encodeBinding(@Qualifier("encodeQueue") Queue queue, @Qualifier("encodeExchange") TopicExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with("encode.file_id.#");
+    Binding encodeBinding(@Qualifier("encodeQueue") Queue queue, TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(String.format(Encode.routingKey, "#"));
     }
 
     @Bean
@@ -56,14 +66,20 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    TopicExchange probeExchange() {
-        return new TopicExchange(Probe.topicExchangeName);
-    }
-
-        @Bean
-    Binding probeBinding(@Qualifier("probeQueue") Queue queue, @Qualifier("probeExchange") TopicExchange exchange) {
+    Binding probeBinding(@Qualifier("probeQueue") Queue queue, TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(String.format(Probe.routingKey, "#"));
     }
+
+    @Bean
+    Queue splitQueue(){
+        return new Queue(Split.queueName, true);
+    }
+
+    @Bean
+    Binding splitBinding(@Qualifier("splitQueue") Queue queue, TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(String.format(Split.routingKey, "#"));
+    }
+
 
 
 //    @Bean
