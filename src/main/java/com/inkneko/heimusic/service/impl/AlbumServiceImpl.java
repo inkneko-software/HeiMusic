@@ -80,6 +80,18 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     }
 
     /**
+     * 更新专辑的艺术家信息
+     *
+     * @param albumId      专辑
+     * @param newArtistIds 新的艺术家信息
+     */
+    @Override
+    public void updateAlbumArtist(Integer albumId, List<Integer> newArtistIds) {
+        albumArtistMapper.delete(new LambdaQueryWrapper<AlbumArtist>().eq(AlbumArtist::getAlbumId, albumId));
+        addAlbumArtist(albumId, newArtistIds);
+    }
+
+    /**
      * 删除指定专辑的艺术家信息
      * @param albumId 专辑
      * @param artistIds 艺术家

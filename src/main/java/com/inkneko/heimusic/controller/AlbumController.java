@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.inkneko.heimusic.annotation.auth.UserAuth;
 import com.inkneko.heimusic.config.MinIOConfig;
+import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.dto.UpdateAlbumInfoDto;
 import com.inkneko.heimusic.model.entity.Album;
 import com.inkneko.heimusic.model.entity.Music;
@@ -13,6 +14,7 @@ import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -98,7 +100,7 @@ public class AlbumController {
                             .collect(Collectors.toList());
                     List<MusicResourceVo> musicResourceVos = musicService.getMusicResources(musicId)
                             .stream()
-                            .map(MusicResourceVo::new)
+                            .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig.getEndpoint()))
                             .collect(Collectors.toList());
                     return new MusicVo(music, musicArtistVos, musicResourceVos, minIOConfig.getEndpoint());
                 })
@@ -142,10 +144,28 @@ public class AlbumController {
         return new Response<>(0, "ok", new AlbumListVo(result, albumService.count()));
     }
 
-    @PostMapping("/updateAlbumInfo")
+    @PostMapping(value = "/updateAlbumInfo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "更改专辑基础信息")
-    public Response<?> updateAlbumInfo(@RequestBody UpdateAlbumInfoDto updateAlbumInfoDto){
+    public Response<?> updateAlbumInfo(@ModelAttribute UpdateAlbumInfoDto updateAlbumInfoDto){
+        Album album = albumService.getById(updateAlbumInfoDto.getAlbumId());
+        if (album == null){
+            throw new ServiceException(404, "专辑不存在");
+        }
 
+        if (updateAlbumInfoDto.getCover() != null){
+            minIOService.upload("heimusic", String.format("cover/%d_front", album.getAlbumId()), updateAlbumInfoDto.getCover());
+            album.setFrontCoverUrl(String.format("%s/heimusic/cover/%d_front", minIOConfig.getEndpoint(), album.getAlbumId()));
+        }
+
+        if (updateAlbumInfoDto.isDeleteCover()){
+            album.setFrontCoverUrl(null);
+        }
+
+        album.setTitle(updateAlbumInfoDto.getTitle());
+        albumService.updateById(album);
+        if (updateAlbumInfoDto.getArtistList() != null){
+            albumService.updateAlbumArtist(album.getAlbumId(), updateAlbumInfoDto.getArtistList());
+        }
         return new Response<>(0, "ok");
     }
 

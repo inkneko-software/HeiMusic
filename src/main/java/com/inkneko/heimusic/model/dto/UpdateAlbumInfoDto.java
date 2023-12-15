@@ -27,5 +27,8 @@ public class UpdateAlbumInfoDto {
     private MultipartFile cover;
 
     @Schema(description = "欲设置的专辑艺术家列表")
-    private List<Integer> artistIds;
+    private List<Integer> artistList;
+
+    @Schema(description = "是否删除封面")
+    private boolean deleteCover;
 }

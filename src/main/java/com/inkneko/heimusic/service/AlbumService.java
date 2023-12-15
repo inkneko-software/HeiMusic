@@ -44,6 +44,13 @@ public interface AlbumService extends IService<Album> {
     void addAlbumArtist(Integer albumId, List<Integer> artistIds);
 
     /**
+     * 更新专辑的艺术家信息
+     * @param albumId 专辑
+     * @param newArtistIds 新的艺术家信息
+     */
+    void updateAlbumArtist(Integer albumId, List<Integer> newArtistIds);
+
+    /**
      * 删除指定专辑的艺术家信息
      * @param albumId 专辑
      * @param artistIds 艺术家
