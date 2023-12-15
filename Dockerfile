@@ -12,7 +12,7 @@ RUN mvn  -f /app/pom.xml clean package
 #
 FROM jrottenberg/ffmpeg:4.1-ubuntu
 
-COPY --from=build /app/target/HeiMusic-0.0.1-SNAPSHOT.jar /app/heimusic-server.jar
+COPY --from=build /app/target/HeiMusic-*.jar /app/heimusic-server.jar
 RUN apt-get update && apt-get -y --no-install-recommends install openjdk-8-jre-headless
 EXPOSE 9001
 ENTRYPOINT ["java","-jar","/app/heimusic-server.jar"]
