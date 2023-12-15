@@ -18,9 +18,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.UUID;
 
 /**
  * 将整个CD的音轨（一般为一个CUE文件搭配一个或多个音乐文件）转换为多个单独的音乐文件
@@ -32,6 +31,7 @@ public class SplitConsumer {
     MinIOService minIOService;
     MusicService musicService;
     AmqpTemplate amqpTemplate;
+
     public SplitConsumer(MinIOService minIOService, MusicService musicService, AmqpTemplate amqpTemplate) {
         this.minIOService = minIOService;
         this.musicService = musicService;
@@ -44,11 +44,11 @@ public class SplitConsumer {
         File musicFile = null;
         try {
             SplitRequest splitRequest = objectMapper.readValue(message.getBody(), SplitRequest.class);
-            musicFile =  minIOService.download(splitRequest.getMusicFileBucket(), splitRequest.getMusicFileObjectKey());
-            for(SplitRequest.MusicInfo musicInfo : splitRequest.getMusicList()){
+            musicFile = minIOService.download(splitRequest.getMusicFileBucket(), splitRequest.getMusicFileObjectKey());
+            for (SplitRequest.MusicInfo musicInfo : splitRequest.getMusicList()) {
                 ProcessBuilder processBuilder;
-                File file = File.createTempFile(musicInfo.musicId.toString(), ".flac");
-                if (musicInfo.endTime != null){
+                File file = File.createTempFile(UUID.randomUUID().toString(), ".flac");
+                if (musicInfo.endTime != null) {
                     processBuilder = new ProcessBuilder(
                             "ffmpeg",
                             "-y",
@@ -58,7 +58,7 @@ public class SplitConsumer {
                             "-to", musicInfo.endTime,
                             file.getAbsolutePath()
                     );
-                }else{
+                } else {
                     processBuilder = new ProcessBuilder(
                             "ffmpeg",
                             "-y",
@@ -82,7 +82,7 @@ public class SplitConsumer {
 
                 try {
                     int ret = process.waitFor();
-                    if (ret != 0){
+                    if (ret != 0) {
                         log.error("执行ffmpeg时出现错误，错误码：{}, 输出：{}", ret, new String(IOUtils.toByteArray(process.getErrorStream()), StandardCharsets.UTF_8));
                     }
                     String bucket = "heimusic";
@@ -99,25 +99,25 @@ public class SplitConsumer {
                     probeRequest.setBucket(bucket);
                     probeRequest.setObjectKey(objectKey);
                     amqpTemplate.convertAndSend(RabbitMQConfig.topicExchangeName, RabbitMQConfig.Probe.routingKey, probeRequest);
-                }catch (InterruptedException e){
+                } catch (InterruptedException e) {
                     log.error("Interrupted", e);
                 }
             }
 
 
-        }catch (IOException e){
+        } catch (IOException e) {
             log.error("转换为SplitRequest时发生错误，数据 {}", new String(message.getBody(), StandardCharsets.UTF_8), e);
-        }catch (ServiceException e){
+        } catch (ServiceException e) {
             log.error("下载文件时出现异常：", e);
-        }finally {
-            if (musicFile != null){
+        } finally {
+            if (musicFile != null) {
                 musicFile.deleteOnExit();
             }
         }
 
         try {
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
-        }catch (IOException e){
+        } catch (IOException e) {
             log.error("ack队列消息时发生错误");
         }
     }
