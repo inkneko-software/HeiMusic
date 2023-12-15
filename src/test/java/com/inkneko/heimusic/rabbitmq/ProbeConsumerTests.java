@@ -25,7 +25,7 @@ public class ProbeConsumerTests {
                 request.setMusicId(music.getMusicId());
                 request.setBucket(music.getBucket());
                 request.setObjectKey(music.getObjectKey());
-                template.convertAndSend(RabbitMQConfig.Probe.topicExchangeName, RabbitMQConfig.Probe.routingKey, request);
+                template.convertAndSend(RabbitMQConfig.topicExchangeName, RabbitMQConfig.Probe.routingKey, request);
             }
         }
     }
