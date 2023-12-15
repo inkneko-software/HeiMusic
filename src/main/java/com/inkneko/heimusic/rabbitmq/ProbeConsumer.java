@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inkneko.heimusic.config.RabbitMQConfig;
+import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.rabbitmq.model.ProbeRequest;
 import com.inkneko.heimusic.service.MinIOService;
@@ -63,13 +64,28 @@ public class ProbeConsumer {
     @RabbitListener(queues = RabbitMQConfig.Probe.queueName, ackMode = "MANUAL")
     public void probe(Channel channel, Message message) {
         String routingKey = message.getMessageProperties().getReceivedRoutingKey();
+        File musicFile = null;
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ProbeRequest probeRequest = objectMapper.readValue(message.getBody(), ProbeRequest.class);
-            File musicFile =  minIOService.download(probeRequest.getBucket(), probeRequest.getObjectKey());
+            try {
+                musicFile =  minIOService.download(probeRequest.getBucket(), probeRequest.getObjectKey());
+            } catch (Exception e){
+                logger.error("分析执行错误，出现业务异常：", e);
+                channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
+                return;
+            }
             String command = String.format("ffprobe -v quiet -of json -show_format \"%s\"", musicFile.getAbsolutePath());
             logger.info("接收到probe请求，参数：{}", command);
-            Process process = Runtime.getRuntime().exec(command);
+//            Process process = Runtime.getRuntime().exec(command);
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                    "ffprobe",
+                    "-v", "quiet",
+                    "-of", "json",
+                    "-show_format",
+                    musicFile.getAbsolutePath()
+            );
+            Process process = processBuilder.start();
             try {
                 int retCode = process.waitFor();
                 if (retCode == 0) {
@@ -93,6 +109,14 @@ public class ProbeConsumer {
                 }
 
                 logger.error("执行ffprobe失败，返回码：{}", retCode);
+                //命令执行的错误处理，从stderr读取消息
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                StringBuilder stringBuilder = new StringBuilder();
+                String tmp;
+                while ((tmp = bufferedReader.readLine()) != null) {
+                    stringBuilder.append(tmp);
+                }
+                logger.error(String.format("分析失败，stderr输出：%s", stringBuilder));
 
             } catch (InterruptedException e) {
                 logger.info("收到终止信号，分析终止");
@@ -102,17 +126,14 @@ public class ProbeConsumer {
                 logger.error("错误，异常：", e);
                 //若无法ack则认为当前未执行转码，消息留存在队列中，不进行ack重试
             }
-            //命令执行的错误处理，从stderr读取消息
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            StringBuilder stringBuilder = new StringBuilder();
-            String tmp;
-            while ((tmp = bufferedReader.readLine()) != null) {
-                stringBuilder.append(tmp);
-            }
-            logger.error(String.format("分析失败，stderr输出：%s", stringBuilder));
+
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
         } catch (IOException e) {
             logger.error("分析执行错误，异常：", e);
+        }finally {
+            if( musicFile != null){
+                musicFile.deleteOnExit();
+            }
         }
     }
 }
