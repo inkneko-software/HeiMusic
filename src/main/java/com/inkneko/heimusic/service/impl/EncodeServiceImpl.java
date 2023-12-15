@@ -20,12 +20,12 @@ public class EncodeServiceImpl implements EncodeService {
     @Override
     public void requestEncode(String file) {
         System.out.println("Sending message...");
-        rabbitTemplate.convertAndSend(RabbitMQConfig.Encode.topicExchangeName, "encode.file_id.233", file);
+        rabbitTemplate.convertAndSend(RabbitMQConfig.topicExchangeName, "encode.file_id.233", file);
     }
 
     @Override
     public void requestProbe(String filePath) {
         System.out.println("Sending message...");
-        rabbitTemplate.convertAndSend(RabbitMQConfig.Probe.topicExchangeName, String.format(RabbitMQConfig.Probe.routingKey, 12450), filePath);
+        rabbitTemplate.convertAndSend(RabbitMQConfig.topicExchangeName, String.format(RabbitMQConfig.Probe.routingKey, 12450), filePath);
     }
 }
