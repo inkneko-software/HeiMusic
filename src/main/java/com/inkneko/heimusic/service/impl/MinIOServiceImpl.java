@@ -71,7 +71,7 @@ public class MinIOServiceImpl implements MinIOService {
     @Override
     public void upload(String bucket, String objectPath, MultipartFile multipartFile) throws ServiceException {
         try {
-            String filePrefix = String.format("%s_%s", bucket, Arrays.toString(Base64.getEncoder().encode(objectPath.getBytes()))).toLowerCase();
+            String filePrefix = String.format("%s_%s", bucket, new String(Base64.getEncoder().encode(objectPath.getBytes()))).toLowerCase();
             File file = File.createTempFile(filePrefix, ".tmp");
             multipartFile.transferTo(file);
             minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).build());
