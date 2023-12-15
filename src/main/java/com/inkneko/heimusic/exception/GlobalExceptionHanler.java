@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import javax.servlet.http.HttpServletResponse;
+
 @RestControllerAdvice
 public class GlobalExceptionHanler {
 
@@ -15,8 +17,9 @@ public class GlobalExceptionHanler {
 
     @ExceptionHandler(ServiceException.class)
     @ResponseBody
-    public Response serviceExceptionHandler(ServiceException e){
-        return new Response(e);
+    public Response<?> serviceExceptionHandler(ServiceException e, HttpServletResponse response){
+        response.setStatus(e.getCode());
+        return new Response<>(e.getCode(), e.getMessage());
     }
 
     @ExceptionHandler(BadSqlGrammarException.class)
