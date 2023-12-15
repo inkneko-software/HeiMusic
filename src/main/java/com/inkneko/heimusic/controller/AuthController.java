@@ -165,7 +165,7 @@ public class AuthController {
     @Operation(summary = "创建唯一管理账户")
     public Response<?> createRootAccount(@RequestBody CreateRootAccountDto createRootAccountDto){
         authService.createRootAccount(createRootAccountDto.getEmail(), createRootAccountDto.getPassword());
-        return new Response<>(0, "ok");
+        return new Response<>(0, "创建成功");
     }
 
 }
