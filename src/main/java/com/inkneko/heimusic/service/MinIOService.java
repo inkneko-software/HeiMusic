@@ -47,7 +47,7 @@ public interface MinIOService {
      *
      * @param bucket 指定的桶
      * @param objectPath 对象路径，如avatar/uid-timestamp.bin
-     * @param localPath 欲存储至本地的路径，如/tmp/uid-timestamp.bin
+     * @param localPath 欲存储至本地的文件路径，该路径不能存在文件。
      * @throws ServiceException 业务异常
      */
     void download(String bucket, String objectPath, String localPath) throws ServiceException;

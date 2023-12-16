@@ -110,6 +110,7 @@ public class MinIOServiceImpl implements MinIOService {
     public File download(String bucket, String objectPath) throws ServiceException {
         try {
             File tempFile = File.createTempFile("heimusic_download_", UUID.randomUUID().toString());
+            boolean ignored = tempFile.delete();
             download(bucket, objectPath, tempFile.getAbsolutePath());
             return tempFile;
         } catch (IOException e) {
