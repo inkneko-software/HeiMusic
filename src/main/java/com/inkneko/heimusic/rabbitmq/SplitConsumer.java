@@ -42,12 +42,13 @@ public class SplitConsumer {
     public void split(Channel channel, Message message) {
         ObjectMapper objectMapper = new ObjectMapper();
         File musicFile = null;
+        File splitedTargetFile = null;
         try {
             SplitRequest splitRequest = objectMapper.readValue(message.getBody(), SplitRequest.class);
             musicFile = minIOService.download(splitRequest.getMusicFileBucket(), splitRequest.getMusicFileObjectKey());
             for (SplitRequest.MusicInfo musicInfo : splitRequest.getMusicList()) {
                 ProcessBuilder processBuilder;
-                File file = File.createTempFile(UUID.randomUUID().toString(), ".flac");
+                splitedTargetFile = File.createTempFile("split_consume_" + UUID.randomUUID().toString(), ".flac");
                 if (musicInfo.endTime != null) {
                     processBuilder = new ProcessBuilder(
                             "ffmpeg",
@@ -56,7 +57,7 @@ public class SplitConsumer {
                             "-i", musicFile.getAbsolutePath(),
                             "-ss", musicInfo.startTime,
                             "-to", musicInfo.endTime,
-                            file.getAbsolutePath()
+                            splitedTargetFile.getAbsolutePath()
                     );
                 } else {
                     processBuilder = new ProcessBuilder(
@@ -65,7 +66,7 @@ public class SplitConsumer {
                             "-v", "error",
                             "-i", musicFile.getAbsolutePath(),
                             "-ss", musicInfo.startTime,
-                            file.getAbsolutePath()
+                            splitedTargetFile.getAbsolutePath()
                     );
                 }
                 log.info("准备进行切片操作，命令：{}", String.join(" ", processBuilder.command()));
@@ -87,12 +88,11 @@ public class SplitConsumer {
                     }
                     String bucket = "heimusic";
                     String objectKey = String.format("transcode/cue_split/%d.flac", musicInfo.musicId);
-                    minIOService.upload(bucket, objectKey, file);
+                    minIOService.upload(bucket, objectKey, splitedTargetFile);
                     Music music = musicService.getById(musicInfo.musicId);
                     music.setBucket(bucket);
                     music.setObjectKey(objectKey);
                     musicService.updateById(music);
-                    boolean ignored = file.delete();
                     //获取时长，码率信息
                     ProbeRequest probeRequest = new ProbeRequest();
                     probeRequest.setMusicId(musicInfo.musicId);
@@ -111,7 +111,10 @@ public class SplitConsumer {
             log.error("下载文件时出现异常：", e);
         } finally {
             if (musicFile != null) {
-                musicFile.deleteOnExit();
+                boolean ignored = musicFile.delete();
+            }
+            if (splitedTargetFile != null) {
+                boolean ignored = splitedTargetFile.delete();
             }
         }
 

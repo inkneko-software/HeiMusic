@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inkneko.heimusic.config.RabbitMQConfig;
-import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.rabbitmq.model.ProbeRequest;
 import com.inkneko.heimusic.service.MinIOService;
@@ -23,7 +22,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 
 @Component
 @ConditionalOnProperty(
@@ -69,8 +67,8 @@ public class ProbeConsumer {
             ObjectMapper objectMapper = new ObjectMapper();
             ProbeRequest probeRequest = objectMapper.readValue(message.getBody(), ProbeRequest.class);
             try {
-                musicFile =  minIOService.download(probeRequest.getBucket(), probeRequest.getObjectKey());
-            } catch (Exception e){
+                musicFile = minIOService.download(probeRequest.getBucket(), probeRequest.getObjectKey());
+            } catch (Exception e) {
                 logger.error("分析执行错误，出现业务异常：", e);
                 channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
                 return;
@@ -130,9 +128,9 @@ public class ProbeConsumer {
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
         } catch (IOException e) {
             logger.error("分析执行错误，异常：", e);
-        }finally {
-            if( musicFile != null){
-                musicFile.deleteOnExit();
+        } finally {
+            if (musicFile != null) {
+                boolean ignored = musicFile.delete();
             }
         }
     }

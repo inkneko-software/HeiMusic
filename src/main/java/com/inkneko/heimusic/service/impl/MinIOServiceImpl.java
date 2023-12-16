@@ -17,7 +17,6 @@ import java.io.File;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -109,9 +108,14 @@ public class MinIOServiceImpl implements MinIOService {
      */
     @Override
     public File download(String bucket, String objectPath) throws ServiceException {
-        File tempFile = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-        download(bucket, objectPath, tempFile.getAbsolutePath());
-        return tempFile;
+        try {
+            File tempFile = File.createTempFile("heimusic_download_", UUID.randomUUID().toString());
+            download(bucket, objectPath, tempFile.getAbsolutePath());
+            return tempFile;
+        } catch (IOException e) {
+            logger.error("文件下载失败", e);
+            throw new ServiceException(500, "服务端处理文件时下载失败");
+        }
     }
 
     /**
