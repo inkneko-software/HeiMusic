@@ -1,6 +1,7 @@
 package com.inkneko.heimusic.interceptor;
 
 import com.inkneko.heimusic.annotation.auth.UserAuth;
+import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.service.AuthService;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -49,9 +50,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                                     if (authService.isRootAccount(Integer.parseInt(uid))){
                                         request.setAttribute("root", true);
                                     }else{
-                                        response.setStatus(403);
                                         response.setContentType("application/json;charset=utf-8");
-                                        response.getWriter().print("{code:403, msg:\"权限不足\"}");
+                                        response.getWriter().print("{\"code\": 403, \"message\": \"权限不足\", \"data\": null}");
                                         response.flushBuffer();
                                         return false;
                                     }
@@ -70,9 +70,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                 if (!userAuthAnnotation.required()) {
                     //不要求登录但却要求管理权限，返回权限不足
                     if (userAuthAnnotation.requireRootPrivilege()) {
-                        response.setStatus(403);
                         response.setContentType("application/json;charset=utf-8");
-                        response.getWriter().print("{code:403, msg:\"权限不足\"}");
+                        response.getWriter().print("{\"code\": 403, \"message\": \"权限不足\", \"data\": null}");
                         response.flushBuffer();
                         return false;
                     }
@@ -80,9 +79,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                     return true;
                 }
                 //否则拦截，返回403
-                response.setStatus(403);
                 response.setContentType("application/json;charset=utf-8");
-                response.getWriter().print("{code:403, msg:\"请先登录\"}");
+                response.getWriter().print("{\"code\": 403, \"message\": \"请先登录\", \"data\": null}");
                 response.flushBuffer();
                 return false;
             }

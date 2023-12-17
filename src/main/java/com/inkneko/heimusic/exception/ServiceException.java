@@ -2,34 +2,27 @@ package com.inkneko.heimusic.exception;
 
 import com.inkneko.heimusic.errorcode.ErrorCode;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 业务层异常
  */
 public class ServiceException extends RuntimeException{
-    @Deprecated
-    private ErrorCode errorCode;
+    private final ErrorCode errorCode;
 
-    private Integer code;
-    private String message;
+    private final Integer code;
+    private final String message;
 
-    @Deprecated
     public ServiceException(ErrorCode errorCode){
-        super(errorCode.getMessage());
-        this.code = 400;
         this.message = errorCode.getMessage();
         this.errorCode = errorCode;
+        this.code = errorCode.getCode();
     }
-
-    @Deprecated
-    public ErrorCode getErrorCode() {
-        return this.errorCode;
-    }
-
 
     public ServiceException(Integer code, String message){
         this.code = code;
         this.message = message;
+        this.errorCode = null;
     }
 
     public Integer getCode() {

@@ -31,8 +31,8 @@ public class Response<T> {
 
 
     public Response(ServiceException e){
-        this.code = e.getErrorCode().getCode();
-        this.message = e.getErrorCode().getMessage();
+        this.code = e.getCode();
+        this.message = e.getMessage();
     }
 
 }
