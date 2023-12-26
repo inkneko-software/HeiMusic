@@ -3,12 +3,10 @@ package com.inkneko.heimusic.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.inkneko.heimusic.mapper.MusicArtistMapper;
+import com.inkneko.heimusic.mapper.MusicFavoriteMapper;
 import com.inkneko.heimusic.mapper.MusicResourceMapper;
 import com.inkneko.heimusic.mapper.MusicMapper;
-import com.inkneko.heimusic.model.entity.Artist;
-import com.inkneko.heimusic.model.entity.Music;
-import com.inkneko.heimusic.model.entity.MusicArtist;
-import com.inkneko.heimusic.model.entity.MusicResource;
+import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
 import org.springframework.stereotype.Service;
@@ -21,11 +19,13 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     MusicResourceMapper musicResourceMapper;
     MusicArtistMapper musicArtistMapper;
     ArtistService artistService;
+    MusicFavoriteMapper musicFavoriteMapper;
 
-    public MusicServiceImpl(MusicResourceMapper musicResourceMapper, MusicArtistMapper musicArtistMapper, ArtistService artistService) {
+    public MusicServiceImpl(MusicResourceMapper musicResourceMapper, MusicArtistMapper musicArtistMapper, ArtistService artistService, MusicFavoriteMapper musicFavoriteMapper) {
         this.musicResourceMapper = musicResourceMapper;
         this.musicArtistMapper = musicArtistMapper;
         this.artistService = artistService;
+        this.musicFavoriteMapper = musicFavoriteMapper;
     }
 
     /**
@@ -131,5 +131,17 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Override
     public void removeMusicArtists(Integer musicId, List<Integer> artistIds) {
         artistIds.forEach(artistId -> musicArtistMapper.deleteById(new MusicArtist(musicId, artistId)));
+    }
+
+    /**
+     * 查询是否为用户收藏音乐
+     *
+     * @param userId  用户id
+     * @param musicId 音乐id
+     * @return 是否为收藏音乐
+     */
+    @Override
+    public boolean isFavorite(Integer userId, Integer musicId) {
+        return musicFavoriteMapper.exists(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
     }
 }

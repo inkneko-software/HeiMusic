@@ -76,4 +76,12 @@ public interface MusicService extends IService<Music> {
      * @param artistIds
      */
     void removeMusicArtists(Integer musicId, List<Integer> artistIds);
+
+    /**
+     * 查询是否为用户收藏音乐
+     * @param userId 用户id
+     * @param musicId 音乐id
+     * @return 是否为收藏音乐
+     */
+    boolean isFavorite(Integer userId, Integer musicId);
 }

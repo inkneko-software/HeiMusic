@@ -13,6 +13,7 @@ import com.inkneko.heimusic.service.AlbumService;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
+import com.inkneko.heimusic.util.auth.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.amqp.core.AmqpTemplate;
@@ -32,6 +33,7 @@ public class AlbumController {
     ArtistService artistService;
     MinIOService minIOService;
     MinIOConfig minIOConfig;
+
 
     public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, MinIOService minIOService, MinIOConfig minIOConfig) {
         this.albumService = albumService;
@@ -88,7 +90,13 @@ public class AlbumController {
 
     @GetMapping("/getMusicList")
     @Operation(summary = "查询专辑音乐列表")
+    @UserAuth(required = false)
     public Response<List<MusicVo>> getAlbumMusicList(@RequestParam Integer albumId) {
+        Album album = albumService.getById(albumId);
+        Integer userId = AuthUtils.auth();
+        if (album == null){
+            throw new ServiceException(404, "指定专辑不存在");
+        }
         List<MusicVo> musicVos = albumService.getAlbumMusicList(albumId)
                 .stream()
                 .map(albumMusic -> {
@@ -102,7 +110,8 @@ public class AlbumController {
                             .stream()
                             .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig.getEndpoint()))
                             .collect(Collectors.toList());
-                    return new MusicVo(music, musicArtistVos, musicResourceVos, minIOConfig.getEndpoint());
+                    boolean isFavorite = userId != null && musicService.isFavorite(userId, musicId);
+                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig.getEndpoint(), isFavorite);
                 })
                 .collect(Collectors.toList());
 

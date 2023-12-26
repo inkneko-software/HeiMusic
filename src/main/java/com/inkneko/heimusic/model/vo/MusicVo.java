@@ -2,6 +2,7 @@ package com.inkneko.heimusic.model.vo;
 
 import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
+import com.inkneko.heimusic.model.entity.Album;
 import com.inkneko.heimusic.model.entity.Music;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,11 +18,15 @@ public class MusicVo {
         String bitrate;
         String codec;
         Integer duration;
+        Integer albumId;
+        String albumTitle;
+        String albumCoverUrl;
         List<ArtistVo> artistList;
         List<MusicResourceVo> resourceList;
+        Boolean isFavorite;
 
 
-        public MusicVo(Music music, List<ArtistVo> artistList, List<MusicResourceVo> resourceList, String ossEndpoint) {
+        public MusicVo(Music music, Album album, List<ArtistVo> artistList, List<MusicResourceVo> resourceList, String ossEndpoint, Boolean isFavorite) {
             musicId = music.getMusicId();
             title = music.getTitle();
             translateTitle = music.getTranslateTitle();
@@ -31,5 +36,9 @@ public class MusicVo {
             duration = music.getDuration();
             this.artistList = artistList;
             this.resourceList = resourceList;
+            this.albumId = album.getAlbumId();
+            this.albumTitle = album.getTitle();
+            this.albumCoverUrl = album.getFrontCoverUrl();
+            this.isFavorite = isFavorite;
         }
 }
