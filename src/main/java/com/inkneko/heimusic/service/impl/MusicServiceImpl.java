@@ -2,29 +2,22 @@ package com.inkneko.heimusic.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.inkneko.heimusic.config.RabbitMQConfig;
 import com.inkneko.heimusic.mapper.MusicArtistMapper;
 import com.inkneko.heimusic.mapper.MusicResourceMapper;
-import com.inkneko.heimusic.mapper.MusiclMapper;
+import com.inkneko.heimusic.mapper.MusicMapper;
 import com.inkneko.heimusic.model.entity.Artist;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.model.entity.MusicArtist;
 import com.inkneko.heimusic.model.entity.MusicResource;
-import com.inkneko.heimusic.model.vo.ArtistVo;
-import com.inkneko.heimusic.model.vo.MusicResourceVo;
-import com.inkneko.heimusic.model.vo.MusicVo;
-import com.inkneko.heimusic.rabbitmq.model.ProbeRequest;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
-import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Service;
 
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class MusicServiceImpl extends ServiceImpl<MusiclMapper, Music> implements MusicService {
+public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements MusicService {
     MusicResourceMapper musicResourceMapper;
     MusicArtistMapper musicArtistMapper;
     ArtistService artistService;

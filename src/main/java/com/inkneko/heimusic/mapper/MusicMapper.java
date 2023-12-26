@@ -5,5 +5,5 @@ import com.inkneko.heimusic.model.entity.Music;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface MusiclMapper extends BaseMapper<Music> {
+public interface MusicMapper extends BaseMapper<Music> {
 }
