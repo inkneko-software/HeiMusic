@@ -16,6 +16,12 @@ public interface AlbumService extends IService<Album> {
     void addAlbumMusic(Integer albumId, List<Integer> musicIds);
 
     /**
+     * 查询音乐所属的专辑
+     * @param musicId 音乐ID
+     */
+    Album getAlbumMusicByMusicId(Integer musicId);
+
+    /**
      * 删除指定专辑的音乐
      * @param albumId 专辑id
      * @param musicIds 音乐id

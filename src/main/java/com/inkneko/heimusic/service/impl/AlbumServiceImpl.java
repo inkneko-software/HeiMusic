@@ -44,6 +44,17 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     }
 
     /**
+     * 查询音乐所属的专辑
+     *
+     * @param musicId 音乐ID
+     */
+    @Override
+    public Album getAlbumMusicByMusicId(Integer musicId) {
+        AlbumMusic albumMusic = albumMusicMapper.selectOne(new LambdaQueryWrapper<AlbumMusic>().eq(AlbumMusic::getMusicId, musicId));
+        return getById(albumMusic.getAlbumId());
+    }
+
+    /**
      * 删除指定专辑的音乐
      *
      * @param albumId 专辑id
