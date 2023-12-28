@@ -7,6 +7,7 @@ import com.inkneko.heimusic.service.MinIOService;
 import io.minio.*;
 import io.minio.errors.MinioException;
 import io.minio.http.Method;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class MinIOServiceImpl implements MinIOService {
     MinIOConfig minioConfig;
 
@@ -46,7 +48,7 @@ public class MinIOServiceImpl implements MinIOService {
                             .expiry(1, TimeUnit.DAYS)
                             .build());
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | MinioException e) {
-            System.out.println(e);
+            log.error("获取上传链接时捕获到异常", e);
         }
         return null;
     }
@@ -62,7 +64,7 @@ public class MinIOServiceImpl implements MinIOService {
                             .expiry(1, TimeUnit.DAYS)
                             .build());
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | MinioException e) {
-            System.out.println(e);
+            log.error("获取下载链接时捕获到异常", e);
         }
         return null;
     }
@@ -73,7 +75,7 @@ public class MinIOServiceImpl implements MinIOService {
             String filePrefix = String.format("%s_%s", bucket, new String(Base64.getEncoder().encode(objectPath.getBytes()))).toLowerCase();
             File file = File.createTempFile(filePrefix, ".tmp");
             multipartFile.transferTo(file);
-            minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).build());
+            minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).contentType(multipartFile.getContentType()).build());
             boolean ignored = file.delete();
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | MinioException e) {
             throw new RuntimeException(e);
@@ -81,9 +83,9 @@ public class MinIOServiceImpl implements MinIOService {
     }
 
     @Override
-    public void upload(String bucket, String objectPath, File file) throws ServiceException {
+    public void upload(String bucket, String objectPath, File file, String mimeType) throws ServiceException {
         try {
-            minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).build());
+            minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).contentType(mimeType).build());
             boolean ignored = file.delete();
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | MinioException e) {
             throw new RuntimeException(e);

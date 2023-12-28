@@ -1,7 +1,5 @@
 package com.inkneko.heimusic.service;
 
-import com.inkneko.heimusic.config.MinIOConfig;
-import com.inkneko.heimusic.exception.ServiceException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,18 +12,18 @@ public class MinIOServiceTests {
     MinIOService minIOService;
 
     @Test
-    void uploadObject(){
+    void uploadObject() {
 
-        minIOService.upload("testbucket-1253989510", "testobject.bin", new File("C:\\Users\\41740\\Desktop\\testobject.bin"));
+        minIOService.upload("testbucket-1253989510", "testobject.bin", new File("C:\\Users\\41740\\Desktop\\testobject.bin"), "application/octet-stream");
     }
 
     @Test
-    void deleteObject(){
+    void deleteObject() {
         minIOService.delete("testbucket-1253989510", "testobject.bin");
     }
 
     @Test
-    void download(){
+    void download() {
         File file = minIOService.download("heimusic", "music/103_source");
         System.out.println(file.getAbsolutePath());
     }

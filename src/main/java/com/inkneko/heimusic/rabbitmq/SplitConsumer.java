@@ -48,7 +48,7 @@ public class SplitConsumer {
             musicFile = minIOService.download(splitRequest.getMusicFileBucket(), splitRequest.getMusicFileObjectKey());
             for (SplitRequest.MusicInfo musicInfo : splitRequest.getMusicList()) {
                 ProcessBuilder processBuilder;
-                splitedTargetFile = File.createTempFile("split_consume_" + UUID.randomUUID().toString(), ".flac");
+                splitedTargetFile = File.createTempFile("split_consume_" + UUID.randomUUID(), ".flac");
                 if (musicInfo.endTime != null) {
                     processBuilder = new ProcessBuilder(
                             "ffmpeg",
@@ -88,7 +88,7 @@ public class SplitConsumer {
                     }
                     String bucket = "heimusic";
                     String objectKey = String.format("transcode/cue_split/%d.flac", musicInfo.musicId);
-                    minIOService.upload(bucket, objectKey, splitedTargetFile);
+                    minIOService.upload(bucket, objectKey, splitedTargetFile, "audio/flac");
                     Music music = musicService.getById(musicInfo.musicId);
                     music.setBucket(bucket);
                     music.setObjectKey(objectKey);
