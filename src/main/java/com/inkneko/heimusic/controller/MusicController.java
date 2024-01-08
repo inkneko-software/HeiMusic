@@ -101,4 +101,11 @@ public class MusicController {
         amqpTemplate.convertAndSend(RabbitMQConfig.topicExchangeName, String.format(RabbitMQConfig.Split.routingKey, 12450), splitRequest);
         return new Response<>(0, "ok", musicList);
     }
+
+    @Operation(summary = "更新音乐的艺术家信息")
+    @PostMapping("/updateMusicArtists")
+    public Response<?> updateMusicArtists(@RequestParam Integer musicId, @RequestParam List<Integer> artistIds){
+        musicService.updateMusicArtists(musicId, artistIds);
+        return new Response<>(0, "ok");
+    }
 }

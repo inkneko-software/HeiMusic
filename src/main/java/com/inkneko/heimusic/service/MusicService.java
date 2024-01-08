@@ -33,6 +33,7 @@ public interface MusicService extends IService<Music> {
 
     /**
      * 更新音乐资源
+     *
      * @param musicResource
      */
     void updateMusicResource(MusicResource musicResource);
@@ -56,7 +57,7 @@ public interface MusicService extends IService<Music> {
     /**
      * 向音乐添加艺术家
      *
-     * @param musicId 音乐id
+     * @param musicId   音乐id
      * @param artistIds 艺术家id
      */
     void addMusicArtists(Integer musicId, List<Integer> artistIds);
@@ -64,7 +65,7 @@ public interface MusicService extends IService<Music> {
     /**
      * 向音乐添加艺术家，若艺术家名称不存在，则自动创建
      *
-     * @param musicId 音乐id
+     * @param musicId     音乐id
      * @param artistNames 艺术家名称列表
      */
     void addMusicArtistsWithName(Integer musicId, List<String> artistNames);
@@ -78,8 +79,25 @@ public interface MusicService extends IService<Music> {
     void removeMusicArtists(Integer musicId, List<Integer> artistIds);
 
     /**
+     * 设定音乐的艺术家列表
+     *
+     * @param musicId   音乐id
+     * @param artistIds 欲指定的艺术家id
+     */
+    void updateMusicArtists(Integer musicId, List<Integer> artistIds);
+
+    /**
+     * 设定音乐的艺术家列表
+     *
+     * @param musicId     音乐id
+     * @param artistNames 欲指定的艺术家id
+     */
+    void updateMusicArtistsWithName(Integer musicId, List<String> artistNames);
+
+    /**
      * 查询是否为用户收藏音乐
-     * @param userId 用户id
+     *
+     * @param userId  用户id
      * @param musicId 音乐id
      * @return 是否为收藏音乐
      */

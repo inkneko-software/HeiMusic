@@ -2,16 +2,19 @@ package com.inkneko.heimusic.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.mapper.MusicArtistMapper;
 import com.inkneko.heimusic.mapper.MusicFavoriteMapper;
-import com.inkneko.heimusic.mapper.MusicResourceMapper;
 import com.inkneko.heimusic.mapper.MusicMapper;
+import com.inkneko.heimusic.mapper.MusicResourceMapper;
 import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -113,7 +116,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     public void addMusicArtistsWithName(Integer musicId, List<String> artistNames) {
         artistNames.forEach(artistName -> {
             Artist artist = artistService.getOne(new LambdaQueryWrapper<Artist>().eq(Artist::getName, artistName));
-            if (artist == null){
+            if (artist == null) {
                 artist = new Artist();
                 artist.setName(artistName);
                 artistService.save(artist);
@@ -143,5 +146,55 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Override
     public boolean isFavorite(Integer userId, Integer musicId) {
         return musicFavoriteMapper.exists(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
+    }
+
+    /**
+     * 设定音乐的艺术家列表
+     *
+     * @param musicId   音乐id
+     * @param artistIds 欲指定的艺术家id
+     */
+    @Transactional
+    @Override
+    public void updateMusicArtists(Integer musicId, List<Integer> artistIds) {
+        Music music = getById(musicId);
+        if (music == null) {
+            throw new ServiceException(404, "指定音乐不存在");
+        }
+        musicArtistMapper.delete(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getMusicId, musicId));
+        MusicArtist musicArtist = new MusicArtist();
+        musicArtist.setMusicId(musicId);
+        for (Integer artistId : artistIds) {
+            musicArtist.setArtistId(artistId);
+            try {
+                musicArtistMapper.insert(musicArtist);
+            } catch (DuplicateKeyException ignored) {
+            }
+        }
+    }
+
+    /**
+     * 设定音乐的艺术家列表
+     *
+     * @param musicId     音乐id
+     * @param artistNames 欲指定的艺术家id
+     */
+    @Override
+    public void updateMusicArtistsWithName(Integer musicId, List<String> artistNames) {
+        Music music = getById(musicId);
+        if (music == null) {
+            throw new ServiceException(404, "指定音乐不存在");
+        }
+        List<Integer> artistIds = new ArrayList<>();
+        for (String artistName : artistNames) {
+            Artist artist = artistService.getOne(new LambdaQueryWrapper<Artist>().eq(Artist::getName, artistName));
+            if (artist == null) {
+                artist = new Artist();
+                artist.setName(artistName);
+                artistService.save(artist);
+            }
+            artistIds.add(artist.getArtistId());
+        }
+        updateMusicArtists(musicId, artistIds);
     }
 }
