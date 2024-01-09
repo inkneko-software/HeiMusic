@@ -51,6 +51,9 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     @Override
     public Album getAlbumMusicByMusicId(Integer musicId) {
         AlbumMusic albumMusic = albumMusicMapper.selectOne(new LambdaQueryWrapper<AlbumMusic>().eq(AlbumMusic::getMusicId, musicId));
+        if (albumMusic == null){
+            return null;
+        }
         return getById(albumMusic.getAlbumId());
     }
 
