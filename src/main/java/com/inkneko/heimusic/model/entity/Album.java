@@ -16,7 +16,8 @@ public class Album {
     Integer albumId;
     String title;
     String translateTitle;
-    String frontCoverUrl;
+    String frontCoverBucket;
+    String frontCoverObjectKey;
     String backCoverUrl;
     Date createdAt;
     Date updatedAt;

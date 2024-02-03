@@ -1,15 +1,18 @@
 package com.inkneko.heimusic.controller;
 
+import com.inkneko.heimusic.annotation.auth.UserAuth;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.config.RabbitMQConfig;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.dto.MusicDto;
 import com.inkneko.heimusic.model.entity.Music;
+import com.inkneko.heimusic.model.vo.MusicVo;
 import com.inkneko.heimusic.model.vo.Response;
 import com.inkneko.heimusic.rabbitmq.model.ProbeRequest;
 import com.inkneko.heimusic.rabbitmq.model.SplitRequest;
 import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
+import com.inkneko.heimusic.util.auth.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.http.MediaType;
@@ -19,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 @RestController
@@ -48,7 +52,7 @@ public class MusicController {
         music.setTranslateTitle(translateTitle);
         musicService.save(music);
 
-        String bucket = "heimusic";
+        String bucket = minIOConfig.getBucket();
         String objectKey = String.format("music/%d_source", music.getMusicId());
         minIOService.upload(bucket, objectKey, file);
         music.setBucket(bucket);
@@ -79,7 +83,7 @@ public class MusicController {
         }
         //保存CUE文件
         String objectKey = String.format("upload/cue/%s", UUID.randomUUID());
-        minIOService.upload("heimusic", objectKey, file);
+        minIOService.upload(minIOConfig.getBucket(), objectKey, file);
 
         List<SplitRequest.MusicInfo> musicInfoList = new ArrayList<>();
         List<Music> musicList = new ArrayList<>();
@@ -95,7 +99,7 @@ public class MusicController {
         }
         //发布切片任务
         SplitRequest splitRequest = new SplitRequest();
-        splitRequest.setMusicFileBucket("heimusic");
+        splitRequest.setMusicFileBucket(minIOConfig.getBucket());
         splitRequest.setMusicFileObjectKey(objectKey);
         splitRequest.setMusicList(musicInfoList);
         amqpTemplate.convertAndSend(RabbitMQConfig.topicExchangeName, String.format(RabbitMQConfig.Split.routingKey, 12450), splitRequest);
@@ -108,4 +112,6 @@ public class MusicController {
         musicService.updateMusicArtists(musicId, artistIds);
         return new Response<>(0, "ok");
     }
+
+
 }

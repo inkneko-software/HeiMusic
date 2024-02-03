@@ -10,12 +10,15 @@ import org.springframework.stereotype.Component;
 @Component
 @Configuration
 public class MinIOConfig {
-    @Value("${heimusic.minio.endpoint}")
+    @Value("${heimusic.oss.endpoint}")
     String endpoint;
-    @Value("${heimusic.minio.region}")
-    String region;
-    @Value("${heimusic.minio.accessKey}")
+    @Value("${heimusic.oss.cdn:}")
+    String cdn;
+    @Value("${heimusic.oss.bucket}")
+    String bucket;
+    @Value("${heimusic.oss.accessKey}")
     String accessKey;
-    @Value("${heimusic.minio.secretKey}")
+    @Value("${heimusic.oss.secretKey}")
     String secretKey;
+
 }

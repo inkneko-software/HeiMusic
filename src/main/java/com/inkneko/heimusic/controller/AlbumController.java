@@ -55,8 +55,9 @@ public class AlbumController {
         albumService.save(album);
         //保存专辑封面至minio，然后更新专辑封面url
         if (frontCover != null) {
-            minIOService.upload("heimusic", String.format("cover/%d_front", album.getAlbumId()), frontCover);
-            album.setFrontCoverUrl(String.format("%s/heimusic/cover/%d_front", minIOConfig.getEndpoint(), album.getAlbumId()));
+            minIOService.upload(minIOConfig.getBucket(), String.format("cover/%d_front", album.getAlbumId()), frontCover);
+            album.setFrontCoverBucket(minIOConfig.getBucket());
+            album.setFrontCoverObjectKey(String.format("cover/%d_front", album.getAlbumId()));
             albumService.updateById(album);
         }
         //保存专辑艺术家
@@ -84,7 +85,7 @@ public class AlbumController {
                 .stream()
                 .map(albumArtist -> new ArtistVo(artistService.getById(albumArtist.getArtistId())))
                 .collect(Collectors.toList());
-        return new Response<>(0, "ok", new AlbumVo(album, artistVos, albumService.getAlbumMusicNum(albumId)));
+        return new Response<>(0, "ok", new AlbumVo(album, artistVos, albumService.getAlbumMusicNum(albumId), minIOConfig));
     }
 
     @GetMapping("/getMusicList")
@@ -107,10 +108,10 @@ public class AlbumController {
                             .collect(Collectors.toList());
                     List<MusicResourceVo> musicResourceVos = musicService.getMusicResources(musicId)
                             .stream()
-                            .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig.getEndpoint()))
+                            .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                             .collect(Collectors.toList());
                     boolean isFavorite = userId != null && musicService.isFavorite(userId, musicId);
-                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig.getEndpoint(), isFavorite);
+                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig, isFavorite);
                 })
                 .collect(Collectors.toList());
 
@@ -128,7 +129,7 @@ public class AlbumController {
                             .stream()
                             .map(musicArtist -> new ArtistVo(artistService.getById(musicArtist.getArtistId())))
                             .collect(Collectors.toList());
-                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()));
+                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), minIOConfig);
                 })
                 .collect(Collectors.toList());
         return new Response<>(0, "ok", result);
@@ -146,7 +147,7 @@ public class AlbumController {
                             .stream()
                             .map(musicArtist -> new ArtistVo(artistService.getById(musicArtist.getArtistId())))
                             .collect(Collectors.toList());
-                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()));
+                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), minIOConfig);
                 })
                 .collect(Collectors.toList());
         return new Response<>(0, "ok", new AlbumListVo(result, albumService.count()));
@@ -162,11 +163,13 @@ public class AlbumController {
 
         if (updateAlbumInfoDto.getCover() != null) {
             minIOService.upload("heimusic", String.format("cover/%d_front", album.getAlbumId()), updateAlbumInfoDto.getCover());
-            album.setFrontCoverUrl(String.format("%s/heimusic/cover/%d_front", minIOConfig.getEndpoint(), album.getAlbumId()));
+            album.setFrontCoverBucket(minIOConfig.getBucket());
+            album.setFrontCoverObjectKey(String.format("cover/%d_front", album.getAlbumId()));
         }
 
         if (updateAlbumInfoDto.isDeleteCover()) {
-            album.setFrontCoverUrl(null);
+            album.setFrontCoverBucket(null);
+            album.setFrontCoverObjectKey(null);
         }
 
         album.setTitle(updateAlbumInfoDto.getTitle());
@@ -221,12 +224,12 @@ public class AlbumController {
         List<MusicResourceVo> musicResourceVos = musicService
                 .getMusicResources(selectedMusic.getMusicId())
                 .stream()
-                .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig.getEndpoint()))
+                .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                 .collect(Collectors.toList());
         return new Response<>(
                 0,
                 "ok",
-                new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig.getEndpoint(), musicService.isFavorite(userId, selectedMusic.getMusicId())));
+                new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
 
 
     }
@@ -244,6 +247,7 @@ public class AlbumController {
             throw new ServiceException(500, "音乐数量小于100，请添加更多音乐后尝试");
         }
 
+        //查询最后一个音乐，用于随机数的边界
         Music lastMusic = musicService.getOne(new LambdaQueryWrapper<Music>().orderByDesc(Music::getMusicId).last("LIMIT 1"));
         //每日6点更新
         Date date = new Date();
@@ -284,9 +288,9 @@ public class AlbumController {
             List<MusicResourceVo> musicResourceVos = musicService
                     .getMusicResources(selectedMusic.getMusicId())
                     .stream()
-                    .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig.getEndpoint()))
+                    .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                     .collect(Collectors.toList());
-            recommendMusicList.add(new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig.getEndpoint(), musicService.isFavorite(userId, selectedMusic.getMusicId())));
+            recommendMusicList.add(new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
         }
         return new Response<>(0, "ok", recommendMusicList);
     }

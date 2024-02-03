@@ -1,6 +1,7 @@
 package com.inkneko.heimusic.rabbitmq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.config.RabbitMQConfig;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.entity.Music;
@@ -28,11 +29,13 @@ import java.util.UUID;
 @Component
 public class SplitConsumer {
 
+    MinIOConfig minIOConfig;
     MinIOService minIOService;
     MusicService musicService;
     AmqpTemplate amqpTemplate;
 
-    public SplitConsumer(MinIOService minIOService, MusicService musicService, AmqpTemplate amqpTemplate) {
+    public SplitConsumer(MinIOConfig minIOConfig, MinIOService minIOService, MusicService musicService, AmqpTemplate amqpTemplate) {
+        this.minIOConfig = minIOConfig;
         this.minIOService = minIOService;
         this.musicService = musicService;
         this.amqpTemplate = amqpTemplate;
@@ -86,7 +89,7 @@ public class SplitConsumer {
                     if (ret != 0) {
                         log.error("执行ffmpeg时出现错误，错误码：{}, 输出：{}", ret, new String(IOUtils.toByteArray(process.getErrorStream()), StandardCharsets.UTF_8));
                     }
-                    String bucket = "heimusic";
+                    String bucket = minIOConfig.getBucket();
                     String objectKey = String.format("transcode/cue_split/%d.flac", musicInfo.musicId);
                     minIOService.upload(bucket, objectKey, splitedTargetFile, "audio/flac");
                     Music music = musicService.getById(musicInfo.musicId);

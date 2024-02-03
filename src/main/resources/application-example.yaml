@@ -47,8 +47,11 @@ heimusic:
   domain: localhost
   mail:
     from: "HeiMusic <heimusic@example.com>"
-  minio:
-    endpoint: http://example.com
+  oss:
+    endpoint: https://cos.ap-shanghai.example.com
+    bucket: heimusic
+    #若存储桶私有读写，而通过CDN进行公开读取，指定以下cdn连接
+    #cdn: https://static-files.example.com
     accessKey: example_ak
     secretKey: example_sk
   redis:
