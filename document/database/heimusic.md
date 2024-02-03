@@ -82,7 +82,9 @@ CREATE TABLE IF NOT EXISTS album(
     album_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
     translate_title VARCHAR(255),
-    front_cover_url VARCHAR(255),
+    front_cover_url VARCHAR(255) COMMENT '已过时的字段，即将删除' ,
+    front_cover_bucket VARCHAR(255) COMMENT '封面所在的桶',
+    front_cover_object_key VARCHAR(255) COMMENT '封面的对象标识',
     back_cover_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP 
