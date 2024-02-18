@@ -1,28 +1,34 @@
 package com.inkneko.heimusic.controller;
 
-import com.inkneko.heimusic.annotation.auth.UserAuth;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.config.RabbitMQConfig;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.dto.MusicDto;
 import com.inkneko.heimusic.model.entity.Music;
-import com.inkneko.heimusic.model.vo.MusicVo;
 import com.inkneko.heimusic.model.vo.Response;
 import com.inkneko.heimusic.rabbitmq.model.ProbeRequest;
 import com.inkneko.heimusic.rabbitmq.model.SplitRequest;
 import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
-import com.inkneko.heimusic.util.auth.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
 @RestController
@@ -108,10 +114,25 @@ public class MusicController {
 
     @Operation(summary = "更新音乐的艺术家信息")
     @PostMapping("/updateMusicArtists")
-    public Response<?> updateMusicArtists(@RequestParam Integer musicId, @RequestParam List<Integer> artistIds){
+    public Response<?> updateMusicArtists(@RequestParam Integer musicId, @RequestParam List<Integer> artistIds) {
         musicService.updateMusicArtists(musicId, artistIds);
         return new Response<>(0, "ok");
     }
 
+    @Operation(summary = "获取音乐文件")
+    @GetMapping("/getMusicFile/{musicId}")
+    public ResponseEntity<FileSystemResource> getMusicFile(@PathVariable Integer musicId, HttpServletResponse response) {
+        Music music = musicService.getById(musicId);
+        if (music == null || music.getFilePath().isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            final HttpHeaders responseHeaders = new HttpHeaders();
+            responseHeaders.add("Content-Type", Files.probeContentType(Paths.get(music.getFilePath())));
+            return new ResponseEntity<>(new FileSystemResource(music.getFilePath()), responseHeaders, HttpStatus.OK);
+        } catch (IOException ig) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
 }
