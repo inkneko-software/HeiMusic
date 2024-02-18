@@ -20,8 +20,16 @@ public class Music {
     String objectKey;
     String bitrate;
     String codec;
-    Integer duration;
+    String duration;
     String size;
+    Integer trackNumber;
+    Integer trackTotal;
+    Integer discNumber;
+    Integer discTotal;
+    String artist;
+    String filePath;
+    String fileHash;
     Date createdAt;
     Date updatedAt;
+    Date deletedAt;
 }

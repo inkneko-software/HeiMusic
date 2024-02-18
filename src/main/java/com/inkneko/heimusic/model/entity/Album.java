@@ -18,7 +18,13 @@ public class Album {
     String translateTitle;
     String frontCoverBucket;
     String frontCoverObjectKey;
-    String backCoverUrl;
+    String frontCoverFilePath;
+    Integer largeTrackNums;
+    String albumArtist;
     Date createdAt;
     Date updatedAt;
+
+    public Album(String title) {
+        this.title = title;
+    }
 }

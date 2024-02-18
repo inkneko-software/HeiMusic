@@ -2,7 +2,7 @@ package com.inkneko.heimusic.util.music;
 
 import com.inkneko.heimusic.util.music.model.Cue;
 import com.inkneko.heimusic.util.music.model.MusicFile;
-import com.inkneko.heimusic.util.music.model.Track;
+import com.inkneko.heimusic.util.music.model.CueTrack;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -26,8 +26,8 @@ public class CueParser {
         BufferedReader reader = new BufferedReader(new FileReader(filename));
         Cue cue = new Cue();
         MusicFile musicFile = null;
-        Track track = null;
-        Track lastTrack = null;
+        CueTrack cueTrack = null;
+        CueTrack lastCueTrack = null;
         State state = State.GLOBAL;
 
         String line;
@@ -52,36 +52,36 @@ public class CueParser {
                 if (matcher.matches()) {
                     musicFile = new MusicFile();
                     musicFile.setFilename(matcher.group(1));
-                    musicFile.setTracks(new ArrayList<>());
+                    musicFile.setCueTracks(new ArrayList<>());
                     cue.getMusicFiles().add(musicFile);
                     state = State.FILE;
                 }
             } else if (state == State.FILE) {
                 matcher = TRACK_PATTERN.matcher(line);
                 if (matcher.matches()) {
-                    lastTrack = track;
-                    track = new Track();
-                    musicFile.getTracks().add(track);
+                    lastCueTrack = cueTrack;
+                    cueTrack = new CueTrack();
+                    musicFile.getCueTracks().add(cueTrack);
                     state = State.TRACK;
                 }
             } else if (state == State.TRACK) {
                 matcher = TITLE_PATTERN.matcher(line);
                 if (matcher.matches()) {
-                    track.setTitle(matcher.group(1));
+                    cueTrack.setTitle(matcher.group(1));
                     continue;
                 }
 
                 matcher = PERFORMER_PATTERN.matcher(line);
                 if (matcher.matches()) {
-                    track.setPerformer(matcher.group(1));
+                    cueTrack.setPerformer(matcher.group(1));
                     continue;
                 }
 
                 matcher = INDEX_PATTERN.matcher(line);
                 if (matcher.matches()) {
-                    track.setStartTimeString(replaceLast(matcher.group(1), ':', "."));
-                    if (lastTrack != null){
-                        lastTrack.setEndTimeString(replaceLast(matcher.group(1), ':', "."));
+                    cueTrack.setStartTimeString(replaceLast(matcher.group(1), ':', "."));
+                    if (lastCueTrack != null){
+                        lastCueTrack.setEndTimeString(replaceLast(matcher.group(1), ':', "."));
                     }
                     state = State.FILE;
                 }

@@ -8,9 +8,9 @@ import java.util.List;
 @Data
 public class MusicFile {
     private String      filename;
-    private List<Track> tracks;
+    private List<CueTrack> cueTracks;
 
     public MusicFile(){
-        tracks = new ArrayList<>();
+        cueTracks = new ArrayList<>();
     }
 }

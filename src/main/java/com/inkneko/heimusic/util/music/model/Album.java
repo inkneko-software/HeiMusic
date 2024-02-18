@@ -4,19 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Track {
+public class Album {
     String title;
-    String filepath;
-    String duration;
-    String formatName;
-    String size;
-    String bitrate;
     String artist;
-    Integer trackNumber;
-    Integer trackTotal;
-    Integer discNumber;
-    Integer discTotal;
+    String coverFilePath;
+    List<Track> trackList;
 }
