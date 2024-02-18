@@ -3,6 +3,7 @@ package com.inkneko.heimusic.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.inkneko.heimusic.annotation.auth.UserAuth;
+import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.dto.UpdateAlbumInfoDto;
@@ -16,11 +17,24 @@ import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
 import com.inkneko.heimusic.util.auth.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
+import net.coobird.thumbnailator.Thumbnailator;
+import net.coobird.thumbnailator.Thumbnails;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @RestController
@@ -32,14 +46,16 @@ public class AlbumController {
     ArtistService artistService;
     MinIOService minIOService;
     MinIOConfig minIOConfig;
+    HeiMusicConfig heiMusicConfig;
 
 
-    public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, MinIOService minIOService, MinIOConfig minIOConfig) {
+    public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, MinIOService minIOService, MinIOConfig minIOConfig, HeiMusicConfig heiMusicConfig) {
         this.albumService = albumService;
         this.musicService = musicService;
         this.artistService = artistService;
         this.minIOService = minIOService;
         this.minIOConfig = minIOConfig;
+        this.heiMusicConfig = heiMusicConfig;
     }
 
     @PostMapping(value = "/add", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -85,7 +101,7 @@ public class AlbumController {
                 .stream()
                 .map(albumArtist -> new ArtistVo(artistService.getById(albumArtist.getArtistId())))
                 .collect(Collectors.toList());
-        return new Response<>(0, "ok", new AlbumVo(album, artistVos, albumService.getAlbumMusicNum(albumId), minIOConfig));
+        return new Response<>(0, "ok", new AlbumVo(album, artistVos, albumService.getAlbumMusicNum(albumId), heiMusicConfig, minIOConfig));
     }
 
     @GetMapping("/getMusicList")
@@ -111,7 +127,7 @@ public class AlbumController {
                             .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                             .collect(Collectors.toList());
                     boolean isFavorite = userId != null && musicService.isFavorite(userId, musicId);
-                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig, isFavorite);
+                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, heiMusicConfig, minIOConfig, isFavorite);
                 })
                 .collect(Collectors.toList());
 
@@ -129,7 +145,7 @@ public class AlbumController {
                             .stream()
                             .map(musicArtist -> new ArtistVo(artistService.getById(musicArtist.getArtistId())))
                             .collect(Collectors.toList());
-                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), minIOConfig);
+                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), heiMusicConfig, minIOConfig);
                 })
                 .collect(Collectors.toList());
         return new Response<>(0, "ok", result);
@@ -147,7 +163,7 @@ public class AlbumController {
                             .stream()
                             .map(musicArtist -> new ArtistVo(artistService.getById(musicArtist.getArtistId())))
                             .collect(Collectors.toList());
-                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), minIOConfig);
+                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), heiMusicConfig, minIOConfig);
                 })
                 .collect(Collectors.toList());
         return new Response<>(0, "ok", new AlbumListVo(result, albumService.count()));
@@ -202,7 +218,7 @@ public class AlbumController {
 
         Music selectedMusic = null;
         Album album = null;
-        while (selectedMusic == null || selectedMusic.getBucket() == null) {
+        while (selectedMusic == null || (selectedMusic.getBucket() == null && selectedMusic.getFilePath().isEmpty())) {
             Integer musicId = (int) random.nextLong() % lastMusic.getMusicId();
             selectedMusic = musicService.getById(musicId);
             if (selectedMusic != null) {
@@ -229,7 +245,7 @@ public class AlbumController {
         return new Response<>(
                 0,
                 "ok",
-                new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
+                new MusicVo(selectedMusic, album, artistVos, musicResourceVos, heiMusicConfig, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
 
 
     }
@@ -265,7 +281,7 @@ public class AlbumController {
             Music selectedMusic = null;
             Album album = null;
 
-            while (selectedMusic == null || selectedMusic.getBucket() == null) {
+            while (selectedMusic == null || (selectedMusic.getBucket() == null && selectedMusic.getFilePath().isEmpty())) {
                 Integer musicId = (int) random.nextLong() % lastMusic.getMusicId();
                 selectedMusic = musicService.getById(musicId);
                 if (selectedMusic != null && !recommendSet.contains(selectedMusic.getMusicId())) {
@@ -290,8 +306,50 @@ public class AlbumController {
                     .stream()
                     .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                     .collect(Collectors.toList());
-            recommendMusicList.add(new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
+            recommendMusicList.add(new MusicVo(selectedMusic, album, artistVos, musicResourceVos, heiMusicConfig, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
         }
         return new Response<>(0, "ok", recommendMusicList);
+    }
+
+    private final Pattern densePattern = Pattern.compile("@w(\\d+)h(\\d+)");
+    @Operation(summary = "获取封面文件")
+    @GetMapping("/getFrontCoverFile/{albumId}")
+    public ResponseEntity<FileSystemResource> getMusicFile(@PathVariable Integer albumId, @RequestParam(required = false) String s, HttpServletResponse response) {
+        //检查封面是否存在
+        Album album = albumService.getById(albumId);
+        if (album == null || album.getFrontCoverFilePath().isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        File albumCoverFile = new File(album.getFrontCoverFilePath());
+        if (!albumCoverFile.exists()){
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            final HttpHeaders responseHeaders = new HttpHeaders();
+            File responseFile = null;
+            //检查是否存在图片质量调整需求，并检查参数是否合法
+            if (s != null){
+                Matcher matcher = densePattern.matcher(s);
+                if (!matcher.matches()){
+                    return ResponseEntity.badRequest().build();
+                }
+                int width = Integer.parseInt(matcher.group(1));
+                int height = Integer.parseInt(matcher.group(2));
+                responseFile =  new File(String.format("%s%sheimusic-album-cover-%d-w%dh%d.jpg", System.getProperty("java.io.tmpdir"), File.separator, album.getAlbumId(), width, height));
+                if (!responseFile.exists()){
+                    Thumbnails.of(albumCoverFile).size(width, height).outputQuality(0.9).outputFormat("jpg").toFile(responseFile);
+                }
+                responseHeaders.add("Content-Type", "image/jpeg");
+            }else{
+                //无需压缩
+                responseFile = new File(album.getFrontCoverFilePath());
+                responseHeaders.add("Content-Type", Files.probeContentType(Paths.get(album.getFrontCoverFilePath())));
+            }
+
+            return new ResponseEntity<>(new FileSystemResource(responseFile), responseHeaders, HttpStatus.OK);
+        } catch (IOException ig) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
