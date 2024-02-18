@@ -2,7 +2,6 @@ package com.inkneko.heimusic.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.inkneko.heimusic.model.entity.*;
-import com.inkneko.heimusic.model.vo.AlbumVo;
 
 import java.util.List;
 
@@ -48,6 +47,13 @@ public interface AlbumService extends IService<Album> {
      * @param artistIds 艺术家ID
      */
     void addAlbumArtist(Integer albumId, List<Integer> artistIds);
+
+    /**
+     * 向指定专辑添加艺术家信息
+     * @param albumId 专辑ID
+     * @param artistNames 艺术家名称列表
+     */
+    void addAlbumArtistWithNames(Integer albumId, List<String> artistNames);
 
     /**
      * 更新专辑的艺术家信息

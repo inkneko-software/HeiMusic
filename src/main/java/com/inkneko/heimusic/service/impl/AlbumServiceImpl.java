@@ -13,6 +13,7 @@ import com.inkneko.heimusic.model.vo.MusicVo;
 import com.inkneko.heimusic.service.AlbumService;
 import com.inkneko.heimusic.service.MusicService;
 import org.checkerframework.checker.units.qual.A;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,11 +24,13 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     AlbumArtistMapper albumArtistMapper;
     AlbumMusicMapper albumMusicMapper;
     MusicService musicService;
+    ArtistServiceImpl artistService;
 
-    public AlbumServiceImpl(AlbumArtistMapper albumArtistMapper,AlbumMusicMapper albumMusicMapper, MusicService musicService) {
+    public AlbumServiceImpl(AlbumArtistMapper albumArtistMapper, AlbumMusicMapper albumMusicMapper, MusicService musicService, ArtistServiceImpl artistService) {
         this.albumArtistMapper = albumArtistMapper;
         this.albumMusicMapper = albumMusicMapper;
         this.musicService = musicService;
+        this.artistService = artistService;
     }
 
     /**
@@ -91,6 +94,29 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
         for(Integer artistId : artistIds){
             albumArtistMapper.insert(new AlbumArtist(albumId, artistId));
         }
+    }
+
+    /**
+     * 向指定专辑添加艺术家信息
+     *
+     * @param albumId     专辑ID
+     * @param artistNames 艺术家名称列表
+     */
+    @Override
+    public void addAlbumArtistWithNames(Integer albumId, List<String> artistNames) {
+        artistNames.forEach(artistName -> {
+            Artist artist = artistService.getOne(new LambdaQueryWrapper<Artist>().eq(Artist::getName, artistName));
+            if (artist == null) {
+                artist = new Artist();
+                artist.setName(artistName);
+                artistService.save(artist);
+            }
+            try {
+                albumArtistMapper.insert(new AlbumArtist(albumId, artist.getArtistId()));
+            }catch (DataIntegrityViolationException ignored){
+                //忽略重复添加
+            }
+        });
     }
 
     /**
