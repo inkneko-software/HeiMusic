@@ -23,12 +23,12 @@ CREATE USER 'user'@'%' identified by 'password';
 ```sql
 CREATE TABLE IF NOT EXISTS user_detail(
     user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(20),
-    email VARCHAR(30),
+    username VARCHAR(255),
+    email VARCHAR(255),
     avatar_url VARCHAR(255) NOT NULL DEFAULT "/images/default_avatar.jpg",
     birth DATETIME,
     gender CHAR(1),
-    sign VARCHAR(100),
+    sign VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE(email)
@@ -65,9 +65,9 @@ CREATE TABLE IF NOT EXISTS user_auth(
 ```sql
 CREATE TABLE IF NOT EXISTS artist(
     artist_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(50) NOT NULL,
-    translate_name VARCHAR(50),
-    avatar_url VARCHAR(100),
+    name VARCHAR(255) NOT NULL,
+    translate_name VARCHAR(255),
+    avatar_url VARCHAR(255),
     birth DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS music_artist(
 CREATE TABLE IF NOT EXISTS music_resource(
     music_resource_id INT PRIMARY KEY AUTO_INCREMENT,
     music_id INT NOT NULL,
-    codec VARCHAR(20),
+    codec VARCHAR(255),
     bitrate VARCHAR(255),
     bucket VARCHAR(255),
     object_key VARCHAR(255),
