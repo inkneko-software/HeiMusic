@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS music(
     bucket VARCHAR(255) COMMENT '音乐文件的桶名称',
     object_key VARCHAR(255) COMMENT '音乐文件的对象名称，如"/路径/文件名.后缀"',
     bitrate VARCHAR(255) COMMENT '比特率，单位bs，如1904219',
-    codec VARCHAR(20) COMMENT '音乐编码格式，如FLAC',
+    codec VARCHAR(255) COMMENT '音乐编码格式，如FLAC',
     duration VARCHAR(255) NOT NULL DEFAULT '0' COMMENT '时长，以秒为单位, 如275.453333',
     size VARCHAR(255) COMMENT '文件大小，以b为单位，如65565467',
     track_number INT NOT NULL DEFAULT 0 COMMENT '歌曲的编号',
