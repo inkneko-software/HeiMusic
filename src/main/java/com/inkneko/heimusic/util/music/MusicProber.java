@@ -16,7 +16,7 @@ public class MusicProber {
     public static ProbeResult probe(File file) throws IOException, InterruptedException {
         ProcessBuilder processBuilder = new ProcessBuilder(
                 "ffprobe",
-                "-v", "quiet",
+                "-v", "error",
                 "-of", "json",
                 "-show_format",
                 "-show_streams",
@@ -51,6 +51,6 @@ public class MusicProber {
         if (retCode == 0) {
             return objectMapper.readValue(stringBuilder.toString(), ProbeResult.class);
         }
-        throw new RuntimeException(String.format("ffprobe执行失败，stderr输出：%s", stringBuilder));
+        throw new IOException(String.format("ffprobe执行失败，命令：%s，stderr输出：%s", processBuilder, stringBuilder));
     }
 }

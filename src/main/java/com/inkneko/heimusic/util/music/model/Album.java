@@ -14,4 +14,5 @@ public class Album {
     String artist;
     String coverFilePath;
     List<Track> trackList;
+    Boolean isCueIndexed;
 }

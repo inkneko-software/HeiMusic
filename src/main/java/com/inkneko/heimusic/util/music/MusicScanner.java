@@ -11,7 +11,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class MusicScanner {
@@ -57,26 +56,33 @@ public class MusicScanner {
                     }
                 }
 
-                Album album = null;
-                //检测是否是CUE索引的专辑资源，判断条件为：CUE数量是否等于音乐数量。若是，通常为单CUE索引一个音轨
-                if (!cueFiles.isEmpty() && (cueFiles.size() == musicFiles.size())) {
-                    album = parseCueAlbum(musicFiles, imageFiles, cueFiles);
+                List<Album> parsedAlbums = new ArrayList<>();
+                //fuck CUE! 格式过于混乱，不知道是怎么生成的文件。
+                //遇到了一个情况，音乐文件是提前分好的，CUE只是用来做索引。然后出现了一个FILE下有两个TRACK。
+                //我只能认为生成CUE的软件多多少少有点毛病，尽量不依赖CUE
+                if (!cueFiles.isEmpty() && musicFiles.size() <= cueFiles.size()) {
+                    for (File cueFile : cueFiles) {
+                        parsedAlbums.add(parseCueAlbum(musicFiles, imageFiles, cueFile));
+                    }
                 } else {
-                    album = parseSplitedAlbum(musicFiles, imageFiles);
+                    parsedAlbums.add(parseSplitedAlbum(musicFiles, imageFiles));
                 }
 
-                if (album != null) {
-                    //处理一个专辑有多个碟片，并存储在不同文件夹的情况
-                    String key = album.getTitle() + album.getArtist();
-                    Album tmp = albumMap.get(key);
-                    if (tmp == null){
-                        albumMap.put(key, album);
-                        scannedAlbums.add(album);
-                    }else{
-                        //如果有同个专辑，则进行音乐列表的合并
-                        tmp.getTrackList().addAll(album.getTrackList());
+                for (Album album : parsedAlbums) {
+                    if (album != null) {
+                        //处理一个专辑有多个碟片，并存储在不同文件夹的情况。通过专辑名称+艺术家名称来标识一个专辑
+                        String key = album.getTitle() + album.getArtist();
+                        Album tmp = albumMap.get(key);
+                        if (tmp == null) {
+                            albumMap.put(key, album);
+                            scannedAlbums.add(album);
+                        } else {
+                            //如果有同个专辑，则进行音乐列表的合并
+                            tmp.getTrackList().addAll(album.getTrackList());
+                        }
                     }
                 }
+
             }
         }
         return scannedAlbums;
@@ -87,12 +93,105 @@ public class MusicScanner {
      *
      * @param musicFiles 音乐文件列表
      * @param imageFiles 图片文件列表
-     * @param cueFiles   CUE文件列表
+     * @param cueFile    CUE文件
      * @return 若分析成功，则返回专辑信息。否则返回null
      */
-    private Album parseCueAlbum(List<File> musicFiles, List<File> imageFiles, List<File> cueFiles) {
-        log.info("扫描到CUE，路径：{}", cueFiles.get(0).getAbsolutePath());
-        return null;
+    private Album parseCueAlbum(List<File> musicFiles, List<File> imageFiles, File cueFile) {
+        log.info("扫描到CUE，路径：{}", cueFile.getAbsolutePath());
+        /*
+         * 多个CUE + 多个音轨
+         * 	对于每个CUE，作为一个专辑（实际上是一个专辑。但TITLE会将说明是第几个盘。所以留给用户处理合并）
+         * 		每个CUE下会有一个或多个FILE。对于每个FILE，下面可能会有一个或多个TRACK。这些为实际的音乐
+         * 			如果当前FILE下只有一个TRACK，则不进行转码
+         * 			如果当前FILE下有多个TRACK，则需要转码
+         *
+         */
+        try {
+            String albumName = cueFile.getParentFile().getName();
+            Album album = new Album(albumName, "", "", new ArrayList<>(), true);
+            album.setTrackList(new ArrayList<>());
+
+            CueParser cueParser = new CueParser();
+            Cue cue = cueParser.parse(cueFile.getAbsolutePath());
+            if (cue.getTitle() != null){
+                album.setTitle(cue.getTitle());
+            }
+            album.setArtist(cue.getPerformer());
+
+            if (!imageFiles.isEmpty()) {
+                List<File> filesNamedWithCover = imageFiles.stream()
+                        .filter(filePath -> filePath.getName().toLowerCase().startsWith("cover"))
+                        .toList();
+                //优先寻找以cover开头的图片文件，如cover.jpg、cover01.jpg、Cover02.png
+                if (!filesNamedWithCover.isEmpty()) {
+                    album.setCoverFilePath(filesNamedWithCover.get(0).getAbsolutePath());
+                } else {
+                    //如果没有则从文件夹中选取一张
+                    album.setCoverFilePath(imageFiles.get(0).getAbsolutePath());
+                }
+            }
+            //对于每个FILE
+            for (MusicFile musicFile : cue.getMusicFiles()) {
+                boolean isMultiTracksFile = musicFile.getCueTracks().size() > 1;
+                List<Track> trackList = new ArrayList<>();
+                for (CueTrack cueTrack : musicFile.getCueTracks()) {
+                    Track track = new Track();
+                    track.setTrackNumber(cueTrack.getTrackNumber());
+                    track.setArtist(cueTrack.getPerformer());
+                    track.setTitle(cueTrack.getTitle());
+                    File musicFilePath = new File(cueFile.getParentFile(), musicFile.getFilename());
+                    track.setFilepath(musicFilePath.getAbsolutePath());
+                    //如果是多个音乐在一个音乐文件内，则设置起始时间和结束时间
+                    if (isMultiTracksFile) {
+                        track.setDiskStartTime(track.getDiskStartTime());
+                        track.setDiskEndTime(track.getDiskEndTime());
+                    }else{
+                        //如果是每个音乐为一个文件的情形，考虑使用文件中的tag信息
+                        ProbeResult result = MusicProber.probe(musicFilePath);
+                        Format format = result.getFormat();
+                        Tags tags = format.getTags();
+                        if (tags != null) {
+                            track.setArtist(tags.getArtist());
+                            if (tags.getTitle() != null) {
+                                track.setTitle(tags.getTitle());
+                            }
+                            if (tags.getAlbumArtist() != null) {
+                                album.setArtist(tags.getAlbumArtist());
+                            }
+                            track.setBitrate(format.getBitrate());
+                            track.setDuration(format.getDuration());
+                            track.setFormatName(format.getFormatName());
+                            track.setSize(format.getSize());
+                            try {
+                                if (tags.getTrack() != null) {
+                                    track.setTrackNumber(parseTrackNumber(tags.getTrack()));
+                                }
+                                if (tags.getTrackTotal() != null) {
+                                    track.setTrackTotal(parseTrackNumber(tags.getTrackTotal()));
+                                }
+                                if (tags.getDisc() != null) {
+                                    track.setDiscNumber(parseTrackNumber(tags.getDisc()));
+                                }
+                                if (tags.getDiscTotal() != null) {
+                                    track.setDiscTotal(parseTrackNumber(tags.getDiscTotal()));
+                                }
+                            } catch (NumberFormatException e) {
+                                log.error("解析Track/Disc编号时出现错误，原因：{}，文件路径: {}", e.getMessage(), musicFilePath.getAbsolutePath());
+                            }
+                        }
+                    }
+                    trackList.add(track);
+                }
+                album.getTrackList().addAll(trackList);
+            }
+            return album;
+        } catch (IOException e) {
+            log.error("处理CUE专辑时出现读写错误", e);
+            return null;
+        }catch (InterruptedException e){
+            log.error("处理CUE专辑时被中断", e);
+            return null;
+        }
     }
 
     /**
@@ -119,12 +218,12 @@ public class MusicScanner {
                 //若音乐信息中存在专辑信息，则进行提权
                 albumName = tags.getAlbum();
             }
-            Album album = new Album(albumName, "", "", new ArrayList<>());
+            Album album = new Album(albumName, "", "", new ArrayList<>(), false);
             //获取封面，先尝试从当前文件夹获取。
             if (!imageFiles.isEmpty()) {
                 List<File> filesNamedWithCover = imageFiles.stream()
                         .filter(filePath -> filePath.getName().toLowerCase().startsWith("cover"))
-                        .collect(Collectors.toList());
+                        .toList();
                 //优先寻找以cover开头的图片文件，如cover.jpg、cover01.jpg、Cover02.png
                 if (!filesNamedWithCover.isEmpty()) {
                     album.setCoverFilePath(filesNamedWithCover.get(0).getAbsolutePath());
