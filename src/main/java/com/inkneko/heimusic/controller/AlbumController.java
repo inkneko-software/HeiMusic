@@ -16,27 +16,29 @@ import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
 import com.inkneko.heimusic.util.auth.AuthUtils;
+import com.inkneko.heimusic.util.music.MusicScanner;
+import com.inkneko.heimusic.util.music.model.Track;
 import io.swagger.v3.oas.annotations.Operation;
-import net.coobird.thumbnailator.Thumbnailator;
+import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/album")
 public class AlbumController {
@@ -48,6 +50,7 @@ public class AlbumController {
     MinIOConfig minIOConfig;
     HeiMusicConfig heiMusicConfig;
 
+    File thumbnailsCacheFolder;
 
     public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, MinIOService minIOService, MinIOConfig minIOConfig, HeiMusicConfig heiMusicConfig) {
         this.albumService = albumService;
@@ -56,6 +59,10 @@ public class AlbumController {
         this.minIOService = minIOService;
         this.minIOConfig = minIOConfig;
         this.heiMusicConfig = heiMusicConfig;
+        this.thumbnailsCacheFolder = new File(heiMusicConfig.getLocalApplicationDataDirectory(), "thumbnail-cache");
+        if (!thumbnailsCacheFolder.exists() && !thumbnailsCacheFolder.mkdirs()) {
+            log.error("封面缩略图缓存文件夹无法创建，路径：{}", thumbnailsCacheFolder.getAbsolutePath());
+        }
     }
 
     @PostMapping(value = "/add", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -219,7 +226,7 @@ public class AlbumController {
         Music selectedMusic = null;
         Album album = null;
         while (selectedMusic == null || (selectedMusic.getBucket() == null && selectedMusic.getFilePath().isEmpty())) {
-            Integer musicId = (int) random.nextLong() % lastMusic.getMusicId();
+            Integer musicId = Math.abs((int) random.nextLong()) % lastMusic.getMusicId();
             selectedMusic = musicService.getById(musicId);
             if (selectedMusic != null) {
                 album = albumService.getAlbumMusicByMusicId(selectedMusic.getMusicId());
@@ -312,44 +319,131 @@ public class AlbumController {
     }
 
     private final Pattern densePattern = Pattern.compile("@w(\\d+)h(\\d+)");
+
     @Operation(summary = "获取封面文件")
     @GetMapping("/getFrontCoverFile/{albumId}")
-    public ResponseEntity<FileSystemResource> getMusicFile(@PathVariable Integer albumId, @RequestParam(required = false) String s, HttpServletResponse response) {
+    public ResponseEntity<FileSystemResource> getMusicFile(@PathVariable Integer albumId, @RequestParam(required = false) String s, WebRequest request) {
         //检查封面是否存在
         Album album = albumService.getById(albumId);
         if (album == null || album.getFrontCoverFilePath().isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         File albumCoverFile = new File(album.getFrontCoverFilePath());
-        if (!albumCoverFile.exists()){
+        if (!albumCoverFile.exists()) {
             return ResponseEntity.notFound().build();
         }
-
+        //如果未更改，则直接返回304
+        if (request.checkNotModified(albumCoverFile.lastModified())) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+        }
         try {
             final HttpHeaders responseHeaders = new HttpHeaders();
             File responseFile = null;
             //检查是否存在图片质量调整需求，并检查参数是否合法
-            if (s != null){
+            if (s != null) {
                 Matcher matcher = densePattern.matcher(s);
-                if (!matcher.matches()){
+                if (!matcher.matches()) {
                     return ResponseEntity.badRequest().build();
                 }
                 int width = Integer.parseInt(matcher.group(1));
                 int height = Integer.parseInt(matcher.group(2));
-                responseFile =  new File(String.format("%s%sheimusic-album-cover-%d-w%dh%d.jpg", System.getProperty("java.io.tmpdir"), File.separator, album.getAlbumId(), width, height));
-                if (!responseFile.exists()){
+
+                responseFile = new File(this.thumbnailsCacheFolder, String.format("heimusic-album-cover-%d-w%dh%d.jpg", album.getAlbumId(), width, height));
+                if (!responseFile.exists()) {
                     Thumbnails.of(albumCoverFile).size(width, height).outputQuality(0.9).outputFormat("jpg").toFile(responseFile);
                 }
                 responseHeaders.add("Content-Type", "image/jpeg");
-            }else{
+            } else {
                 //无需压缩
                 responseFile = new File(album.getFrontCoverFilePath());
                 responseHeaders.add("Content-Type", Files.probeContentType(Paths.get(album.getFrontCoverFilePath())));
             }
-
+            //缓存策略
+            responseHeaders.setLastModified(albumCoverFile.lastModified());
+            responseHeaders.setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS));
             return new ResponseEntity<>(new FileSystemResource(responseFile), responseHeaders, HttpStatus.OK);
         } catch (IOException ig) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    public static AtomicBoolean isRunning = new AtomicBoolean(false);
+
+    @Operation(summary = "扫描专辑")
+    @GetMapping("/scanAlbum")
+    public Response<?> scanAlbum() {
+        if (AlbumController.isRunning.getAndSet(true)) {
+            throw new ServiceException(400, "正在扫描中...");
+        }
+
+        new Thread(() -> {
+            try {
+                process();
+            } catch (Exception e) {
+                log.error("扫描音乐时发生异常", e);
+            } finally {
+                AlbumController.isRunning.set(false);
+            }
+        }).start();
+
+        return new Response<>(0, "ok");
+    }
+
+    public void process() {
+        log.info("音乐扫描任务开始执行");
+        if (heiMusicConfig.getStorageType().compareTo("local") != 0) {
+            return;
+        }
+        MusicScanner musicScanner = new MusicScanner(heiMusicConfig);
+        List<com.inkneko.heimusic.util.music.model.Album> albums = musicScanner.scanDirectory(new File(heiMusicConfig.getLocalDataDirectory()));
+        for (com.inkneko.heimusic.util.music.model.Album album : albums) {
+            com.inkneko.heimusic.model.entity.Album savedAlbum = albumService.getOne(
+                    new LambdaQueryWrapper<com.inkneko.heimusic.model.entity.Album>()
+                            .eq(com.inkneko.heimusic.model.entity.Album::getTitle, album.getTitle())
+                            .eq(com.inkneko.heimusic.model.entity.Album::getAlbumArtist, album.getArtist())
+            );
+            if (savedAlbum == null) {
+                savedAlbum = new com.inkneko.heimusic.model.entity.Album(album.getTitle());
+                savedAlbum.setAlbumArtist(album.getArtist());
+                savedAlbum.setFrontCoverFilePath(album.getCoverFilePath());
+                albumService.save(savedAlbum);
+                if (album.getArtist() != null) {
+                    List<String> artists = MusicScanner.parseArtists(album.getArtist());
+                    albumService.addAlbumArtistWithNames(savedAlbum.getAlbumId(), artists);
+                }
+
+                List<Integer> savedMusicList = new ArrayList<>();
+                album.getTrackList().sort((a, b) -> {
+                    if (a.getDiscNumber() != null && b.getDiscNumber() != null && a.getDiscNumber().equals(b.getDiscNumber())) {
+                        return a.getTrackNumber() - b.getTrackNumber();
+                    }
+                    if (a.getDiscNumber() != null && b.getDiscNumber() != null) {
+                        return a.getDiscNumber() - b.getDiscNumber();
+                    }
+                    return 0;
+                });
+                for (Track track : album.getTrackList()) {
+                    Music music = new Music();
+                    music.setTitle(track.getTitle());
+                    music.setFilePath(track.getFilepath());
+                    music.setCodec(track.getFormatName());
+                    music.setDuration(track.getDuration());
+                    music.setSize(track.getSize());
+                    music.setTrackNumber(track.getTrackNumber());
+                    music.setTrackTotal(track.getTrackTotal());
+                    music.setDiscNumber(track.getDiscNumber());
+                    music.setDiscTotal(track.getDiscTotal());
+                    music.setArtist(track.getArtist());
+                    musicService.save(music);
+                    savedMusicList.add(music.getMusicId());
+                    log.info("专辑：{}，扫描到音乐{}", album.getTitle(), music);
+                    List<String> artists = MusicScanner.parseArtists(music.getArtist());
+                    musicService.addMusicArtistsWithName(music.getMusicId(), artists);
+                }
+                albumService.addAlbumMusic(savedAlbum.getAlbumId(), savedMusicList);
+            }
+        }
+        log.info("音乐扫描任务执行完毕");
+        AlbumController.isRunning.set(false);
     }
 }
