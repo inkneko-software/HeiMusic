@@ -14,15 +14,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,6 +29,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/v1/music")
@@ -121,15 +121,26 @@ public class MusicController {
 
     @Operation(summary = "获取音乐文件")
     @GetMapping("/getMusicFile/{musicId}")
-    public ResponseEntity<FileSystemResource> getMusicFile(@PathVariable Integer musicId, HttpServletResponse response) {
+    public ResponseEntity<FileSystemResource> getMusicFile(@PathVariable Integer musicId, WebRequest request) {
         Music music = musicService.getById(musicId);
         if (music == null || music.getFilePath().isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        File musicFile = new File(music.getFilePath());
+        if (!musicFile.exists()){
+            return ResponseEntity.notFound().build();
+        }
+        //如果未更改，则直接返回未修改
+        if (request.checkNotModified(musicFile.lastModified())){
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+        }
         try {
             final HttpHeaders responseHeaders = new HttpHeaders();
             responseHeaders.add("Content-Type", Files.probeContentType(Paths.get(music.getFilePath())));
-            return new ResponseEntity<>(new FileSystemResource(music.getFilePath()), responseHeaders, HttpStatus.OK);
+            //缓存策略
+            responseHeaders.setLastModified(musicFile.lastModified());
+            responseHeaders.setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS));
+            return new ResponseEntity<>(new FileSystemResource(musicFile), responseHeaders, HttpStatus.OK);
         } catch (IOException ig) {
             return ResponseEntity.notFound().build();
         }
