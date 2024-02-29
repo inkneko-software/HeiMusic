@@ -2,11 +2,13 @@ package com.inkneko.heimusic.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.inkneko.heimusic.annotation.auth.UserAuth;
+import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.mapper.MusicFavoriteMapper;
 import com.inkneko.heimusic.model.entity.Album;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.model.entity.MusicFavorite;
+import com.inkneko.heimusic.model.entity.Playlist;
 import com.inkneko.heimusic.model.vo.ArtistVo;
 import com.inkneko.heimusic.model.vo.MusicResourceVo;
 import com.inkneko.heimusic.model.vo.MusicVo;
@@ -33,13 +35,15 @@ public class PlaylistController {
 
     MusicFavoriteMapper musicFavoriteMapper;
     MinIOConfig minIOConfig;
+    HeiMusicConfig heiMusicConfig;
 
-    public PlaylistController(AlbumService albumService, MusicService musicService, MusicFavoriteMapper musicFavoriteMapper, MinIOConfig minIOConfig, ArtistService artistService) {
+    public PlaylistController(AlbumService albumService, MusicService musicService, MusicFavoriteMapper musicFavoriteMapper, MinIOConfig minIOConfig, ArtistService artistService, HeiMusicConfig heiMusicConfig) {
         this.albumService = albumService;
         this.musicService = musicService;
         this.musicFavoriteMapper = musicFavoriteMapper;
         this.minIOConfig = minIOConfig;
         this.artistService = artistService;
+        this.heiMusicConfig = heiMusicConfig;
     }
 
     @UserAuth
@@ -74,10 +78,10 @@ public class PlaylistController {
                     //获取音乐的资源信息
                     List<MusicResourceVo> musicResourceVos = musicService.getMusicResources(musicId)
                             .stream()
-                            .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig.getEndpoint()))
+                            .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                             .collect(Collectors.toList());
                     boolean isFavorite = musicService.isFavorite(userId, musicId);
-                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig.getEndpoint(), isFavorite);
+                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, heiMusicConfig, minIOConfig, isFavorite);
                 })
                 .collect(Collectors.toList());
 
@@ -105,4 +109,14 @@ public class PlaylistController {
         musicFavoriteMapper.delete(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
         return new Response<>(0, "ok");
     }
+
+    @UserAuth
+    @Operation(summary = "创建歌单")
+    @PostMapping("/addPlaylist")
+    public Response<Playlist> addPlaylist(){
+        
+        return new Response<>(0, "ok", null);
+    }
+
+
 }
