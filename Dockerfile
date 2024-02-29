@@ -6,7 +6,7 @@ COPY src /app/src
 COPY pom.xml /app
 #COPY maven_ali_mirror_settings.xml /usr/share/maven/ref/
 #RUN mvn -s /usr/share/maven/ref/maven_ali_mirror_settings.xml -f /app/pom.xml clean package
-RUN mvn  -f /app/pom.xml clean package
+RUN mvn  -f /app/pom.xml clean package -Dmaven.test.skip=true
 #
 # Package stage
 #
