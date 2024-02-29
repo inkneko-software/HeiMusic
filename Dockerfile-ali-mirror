@@ -1,7 +1,7 @@
 #
 # Build stage
 #
-FROM maven:3.8.6-jdk-8-slim AS build
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 COPY src /app/src
 COPY pom.xml /app
 COPY maven_ali_mirror_settings.xml /usr/share/maven/ref/
@@ -12,6 +12,6 @@ RUN mvn -s /usr/share/maven/ref/maven_ali_mirror_settings.xml -f /app/pom.xml cl
 FROM jrottenberg/ffmpeg:4.1-ubuntu
 
 COPY --from=build /app/target/HeiMusic-*.jar /app/heimusic-server.jar
-RUN apt-get update && apt-get -y --no-install-recommends install openjdk-8-jre-headless
+RUN apt-get update && apt-get -y --no-install-recommends install openjdk-17-jre-headless
 EXPOSE 9001
 ENTRYPOINT ["java","-jar","/app/heimusic-server.jar"]
