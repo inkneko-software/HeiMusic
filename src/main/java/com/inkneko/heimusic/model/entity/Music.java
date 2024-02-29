@@ -32,4 +32,9 @@ public class Music {
     Date createdAt;
     Date updatedAt;
     Date deletedAt;
+
+    @Override
+    public int hashCode() {
+        return musicId.hashCode();
+    }
 }
