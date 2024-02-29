@@ -9,6 +9,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +27,15 @@ public class MusicScanner {
         this.heiMusicConfig = heiMusicConfig;
     }
 
-    public List<Album> scanDirectory(File root) {
+    /**
+     * 扫描音乐，从指定的root，自顶向下
+     *
+     * @param root               根目录
+     * @param isMusicFileScanned 用于指定当前音乐文件是否已扫描过
+     * @param albumConsumer      用于接收已扫描的专辑。
+     * @return 专辑列表
+     */
+    public List<Album> scanDirectory(File root, Predicate<File> isMusicFileScanned, Consumer<Album> albumConsumer) {
 
         Map<String, Album> albumMap = new HashMap<>();
         List<Album> scannedAlbums = new ArrayList<>();
@@ -50,10 +60,17 @@ public class MusicScanner {
                     if (extension.compareToIgnoreCase(".cue") == 0) {
                         cueFiles.add(file);
                     } else if (musicExtensions.contains(extension)) {
-                        musicFiles.add(file);
+                        if (!isMusicFileScanned.test(file)) {
+                            musicFiles.add(file);
+                        }
                     } else if (imageExtensions.contains(extension)) {
                         imageFiles.add(file);
                     }
+                }
+
+                //如果当前目录的音乐文件都扫描过了（或没有音乐文件）则跳过
+                if (musicFiles.isEmpty()){
+                    continue;
                 }
 
                 List<Album> parsedAlbums = new ArrayList<>();
@@ -74,12 +91,14 @@ public class MusicScanner {
                         String key = album.getTitle() + album.getArtist();
                         Album tmp = albumMap.get(key);
                         if (tmp == null) {
+                            tmp = album;
                             albumMap.put(key, album);
                             scannedAlbums.add(album);
                         } else {
                             //如果有同个专辑，则进行音乐列表的合并
                             tmp.getTrackList().addAll(album.getTrackList());
                         }
+                        albumConsumer.accept(tmp);
                     }
                 }
 
@@ -113,7 +132,7 @@ public class MusicScanner {
 
             CueParser cueParser = new CueParser();
             Cue cue = cueParser.parse(cueFile.getAbsolutePath());
-            if (cue.getTitle() != null){
+            if (cue.getTitle() != null) {
                 album.setTitle(cue.getTitle());
             }
             album.setArtist(cue.getPerformer());
@@ -145,7 +164,7 @@ public class MusicScanner {
                     if (isMultiTracksFile) {
                         track.setDiskStartTime(track.getDiskStartTime());
                         track.setDiskEndTime(track.getDiskEndTime());
-                    }else{
+                    } else {
                         //如果是每个音乐为一个文件的情形，考虑使用文件中的tag信息
                         ProbeResult result = MusicProber.probe(musicFilePath);
                         Format format = result.getFormat();
@@ -188,7 +207,7 @@ public class MusicScanner {
         } catch (IOException e) {
             log.error("处理CUE专辑时出现读写错误", e);
             return null;
-        }catch (InterruptedException e){
+        } catch (InterruptedException e) {
             log.error("处理CUE专辑时被中断", e);
             return null;
         }

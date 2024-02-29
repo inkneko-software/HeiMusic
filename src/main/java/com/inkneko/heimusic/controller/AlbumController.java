@@ -6,8 +6,10 @@ import com.inkneko.heimusic.annotation.auth.UserAuth;
 import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.exception.ServiceException;
+import com.inkneko.heimusic.job.MusicScannerJob;
 import com.inkneko.heimusic.model.dto.UpdateAlbumInfoDto;
 import com.inkneko.heimusic.model.entity.Album;
+import com.inkneko.heimusic.model.entity.AlbumMusic;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.model.entity.MusicArtist;
 import com.inkneko.heimusic.model.vo.*;
@@ -34,6 +36,8 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -49,16 +53,17 @@ public class AlbumController {
     MinIOService minIOService;
     MinIOConfig minIOConfig;
     HeiMusicConfig heiMusicConfig;
-
+    MusicScannerJob musicScannerJob;
     File thumbnailsCacheFolder;
 
-    public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, MinIOService minIOService, MinIOConfig minIOConfig, HeiMusicConfig heiMusicConfig) {
+    public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, MinIOService minIOService, MinIOConfig minIOConfig, HeiMusicConfig heiMusicConfig, MusicScannerJob musicScannerJob) {
         this.albumService = albumService;
         this.musicService = musicService;
         this.artistService = artistService;
         this.minIOService = minIOService;
         this.minIOConfig = minIOConfig;
         this.heiMusicConfig = heiMusicConfig;
+        this.musicScannerJob = musicScannerJob;
         this.thumbnailsCacheFolder = new File(heiMusicConfig.getLocalApplicationDataDirectory(), "thumbnail-cache");
         if (!thumbnailsCacheFolder.exists() && !thumbnailsCacheFolder.mkdirs()) {
             log.error("封面缩略图缓存文件夹无法创建，路径：{}", thumbnailsCacheFolder.getAbsolutePath());
@@ -367,83 +372,24 @@ public class AlbumController {
         }
     }
 
-    public static AtomicBoolean isRunning = new AtomicBoolean(false);
 
     @Operation(summary = "扫描专辑")
     @GetMapping("/scanAlbum")
     public Response<?> scanAlbum() {
-        if (AlbumController.isRunning.getAndSet(true)) {
+        if (MusicScannerJob.isRunning.getAndSet(true)) {
             throw new ServiceException(400, "正在扫描中...");
         }
 
         new Thread(() -> {
             try {
-                process();
+                musicScannerJob.process();
             } catch (Exception e) {
                 log.error("扫描音乐时发生异常", e);
             } finally {
-                AlbumController.isRunning.set(false);
+                MusicScannerJob.isRunning.set(false);
             }
         }).start();
 
         return new Response<>(0, "ok");
-    }
-
-    public void process() {
-        log.info("音乐扫描任务开始执行");
-        if (heiMusicConfig.getStorageType().compareTo("local") != 0) {
-            return;
-        }
-        MusicScanner musicScanner = new MusicScanner(heiMusicConfig);
-        List<com.inkneko.heimusic.util.music.model.Album> albums = musicScanner.scanDirectory(new File(heiMusicConfig.getLocalDataDirectory()));
-        for (com.inkneko.heimusic.util.music.model.Album album : albums) {
-            com.inkneko.heimusic.model.entity.Album savedAlbum = albumService.getOne(
-                    new LambdaQueryWrapper<com.inkneko.heimusic.model.entity.Album>()
-                            .eq(com.inkneko.heimusic.model.entity.Album::getTitle, album.getTitle())
-                            .eq(com.inkneko.heimusic.model.entity.Album::getAlbumArtist, album.getArtist())
-            );
-            if (savedAlbum == null) {
-                savedAlbum = new com.inkneko.heimusic.model.entity.Album(album.getTitle());
-                savedAlbum.setAlbumArtist(album.getArtist());
-                savedAlbum.setFrontCoverFilePath(album.getCoverFilePath());
-                albumService.save(savedAlbum);
-                if (album.getArtist() != null) {
-                    List<String> artists = MusicScanner.parseArtists(album.getArtist());
-                    albumService.addAlbumArtistWithNames(savedAlbum.getAlbumId(), artists);
-                }
-
-                List<Integer> savedMusicList = new ArrayList<>();
-                album.getTrackList().sort((a, b) -> {
-                    if (a.getDiscNumber() != null && b.getDiscNumber() != null && a.getDiscNumber().equals(b.getDiscNumber())) {
-                        return a.getTrackNumber() - b.getTrackNumber();
-                    }
-                    if (a.getDiscNumber() != null && b.getDiscNumber() != null) {
-                        return a.getDiscNumber() - b.getDiscNumber();
-                    }
-                    return 0;
-                });
-                for (Track track : album.getTrackList()) {
-                    Music music = new Music();
-                    music.setTitle(track.getTitle());
-                    music.setFilePath(track.getFilepath());
-                    music.setCodec(track.getFormatName());
-                    music.setDuration(track.getDuration());
-                    music.setSize(track.getSize());
-                    music.setTrackNumber(track.getTrackNumber());
-                    music.setTrackTotal(track.getTrackTotal());
-                    music.setDiscNumber(track.getDiscNumber());
-                    music.setDiscTotal(track.getDiscTotal());
-                    music.setArtist(track.getArtist());
-                    musicService.save(music);
-                    savedMusicList.add(music.getMusicId());
-                    log.info("专辑：{}，扫描到音乐{}", album.getTitle(), music);
-                    List<String> artists = MusicScanner.parseArtists(music.getArtist());
-                    musicService.addMusicArtistsWithName(music.getMusicId(), artists);
-                }
-                albumService.addAlbumMusic(savedAlbum.getAlbumId(), savedMusicList);
-            }
-        }
-        log.info("音乐扫描任务执行完毕");
-        AlbumController.isRunning.set(false);
     }
 }
