@@ -6,6 +6,7 @@ import com.inkneko.heimusic.model.entity.MusicArtist;
 import com.inkneko.heimusic.model.entity.MusicResource;
 
 import java.util.List;
+import java.util.Map;
 
 public interface MusicService extends IService<Music> {
 
@@ -102,4 +103,12 @@ public interface MusicService extends IService<Music> {
      * @return 是否为收藏音乐
      */
     boolean isFavorite(Integer userId, Integer musicId);
+
+    /**
+     * 查询包含指定艺术家的音乐
+     *
+     * @param artistIds 艺术家列表
+     * @return 满足条件的音乐，以及音乐对应的艺术家列表
+     */
+    Map<Music, List<MusicArtist>> getByContainsArtist(List<Integer> artistIds);
 }

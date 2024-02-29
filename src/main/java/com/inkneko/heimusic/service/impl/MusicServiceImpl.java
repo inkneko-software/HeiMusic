@@ -14,8 +14,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements MusicService {
@@ -196,5 +195,29 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             artistIds.add(artist.getArtistId());
         }
         updateMusicArtists(musicId, artistIds);
+    }
+
+    /**
+     * 查询包含指定艺术家的音乐
+     *
+     * @param artistIds 艺术家列表
+     * @return 满足条件的音乐，以及音乐对应的艺术家列表
+     */
+    @Override
+    public Map<Music, List<MusicArtist>> getByContainsArtist(List<Integer> artistIds) {
+        Map<Music, List<MusicArtist>> result = new LinkedHashMap<>();
+        Set<Integer> matchedMusicSet = new TreeSet<>();
+        for (Integer artistId : artistIds) {
+            List<MusicArtist> temp = musicArtistMapper.selectList(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getArtistId, artistId));
+            for (MusicArtist musicArtist : temp) {
+                matchedMusicSet.add(musicArtist.getMusicId());
+            }
+        }
+        for (Integer musicId : matchedMusicSet) {
+            Music music = getById(musicId);
+            List<MusicArtist> musicArtists = musicArtistMapper.selectList(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getMusicId, musicId));
+            result.put(music, musicArtists);
+        }
+        return result;
     }
 }
