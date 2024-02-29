@@ -98,8 +98,7 @@ public class ProbeConsumer {
                     logger.info(String.format("格式：%s", probeFormat.toString()));
                     channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
                     Music music = musicService.getById(probeRequest.getMusicId());
-                    music.setDuration(Float.valueOf(probeFormat.getFormat().duration).intValue());
-
+                    music.setDuration(probeFormat.getFormat().duration);
                     music.setCodec(probeFormat.getFormat().formatName);
                     music.setBitrate(probeFormat.getFormat().getBitrate());
                     musicService.updateById(music);
