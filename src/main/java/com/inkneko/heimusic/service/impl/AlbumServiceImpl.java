@@ -69,7 +69,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     @Override
     public void removeAlbumMusic(Integer albumId, List<Integer> musicIds) {
         for (Integer musicId : musicIds) {
-            albumMusicMapper.deleteById(new AlbumMusic(albumId, musicId));
+            albumMusicMapper.delete(new LambdaQueryWrapper<AlbumMusic>().eq(AlbumMusic::getAlbumId, albumId).eq(AlbumMusic::getMusicId, musicId));
         }
     }
 
@@ -139,7 +139,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     @Override
     public void removeAlbumArtist(Integer albumId, List<Integer> artistIds) {
         for(Integer artistId : artistIds){
-            albumArtistMapper.deleteById(new AlbumArtist(albumId, artistId));
+            albumArtistMapper.delete(new LambdaQueryWrapper<AlbumArtist>().eq(AlbumArtist::getAlbumId, albumId).eq(AlbumArtist::getArtistId, artistId));
         }
     }
 

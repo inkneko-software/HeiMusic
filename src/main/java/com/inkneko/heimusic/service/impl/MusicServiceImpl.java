@@ -132,7 +132,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Override
     public void removeMusicArtists(Integer musicId, List<Integer> artistIds) {
-        artistIds.forEach(artistId -> musicArtistMapper.deleteById(new MusicArtist(musicId, artistId)));
+        artistIds.forEach(artistId -> musicArtistMapper.delete(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getArtistId, artistId).eq(MusicArtist::getMusicId, musicId)));
     }
 
     /**

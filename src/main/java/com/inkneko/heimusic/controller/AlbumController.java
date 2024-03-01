@@ -8,10 +8,7 @@ import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.job.MusicScannerJob;
 import com.inkneko.heimusic.model.dto.UpdateAlbumInfoDto;
-import com.inkneko.heimusic.model.entity.Album;
-import com.inkneko.heimusic.model.entity.AlbumMusic;
-import com.inkneko.heimusic.model.entity.Music;
-import com.inkneko.heimusic.model.entity.MusicArtist;
+import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.model.vo.*;
 import com.inkneko.heimusic.service.AlbumService;
 import com.inkneko.heimusic.service.ArtistService;
@@ -25,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.*;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
@@ -211,7 +209,23 @@ public class AlbumController {
     @PostMapping("/removeAlbum")
     @Operation(summary = "删除专辑")
     @UserAuth(requireRootPrivilege = true)
+    @Transactional
     public Response<?> removeAlbum(@RequestParam Integer albumId) {
+        List<AlbumMusic> albumMusics =  albumService.getAlbumMusicList(albumId);
+        //删除音乐相关信息
+        albumMusics.forEach(albumMusic -> {
+            Integer musicId = albumMusic.getMusicId();
+            List<MusicArtist> musicArtists = musicService.getMusicArtists(albumMusic.getMusicId());
+            musicService.removeMusicArtists(albumMusic.getMusicId(), musicArtists.stream().map(MusicArtist::getArtistId).collect(Collectors.toList()));
+            musicService.getMusicResources(musicId).forEach(musicResource -> {
+                musicService.removeMusicResource(musicResource.getMusicResourceId());
+            });
+            musicService.removeById(musicId);
+        });
+        albumService.removeAlbumMusic(albumId, albumMusics.stream().map(AlbumMusic::getMusicId).collect(Collectors.toList()));
+        //删除艺术家信息
+        List<AlbumArtist> albumArtists = albumService.getAlbumArtist(albumId);
+        albumService.removeAlbumArtist(albumId, albumArtists.stream().map(AlbumArtist::getArtistId).collect(Collectors.toList()));
         albumService.removeById(albumId);
         return new Response<>(0, "ok");
     }
@@ -239,7 +253,6 @@ public class AlbumController {
                     selectedMusic = null;
                 }
             }
-
         }
 
         List<ArtistVo> artistVos = musicService
