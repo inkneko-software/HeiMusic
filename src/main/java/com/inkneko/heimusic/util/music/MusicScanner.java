@@ -96,7 +96,7 @@ public class MusicScanner {
                             scannedAlbums.add(album);
                         } else {
                             //如果有同个专辑，则进行音乐列表的合并
-                            tmp.getTrackList().addAll(album.getTrackList());
+                            tmp.setTrackList(album.getTrackList());
                         }
                         albumConsumer.accept(tmp);
                     }
