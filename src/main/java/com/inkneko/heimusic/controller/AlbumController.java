@@ -139,6 +139,7 @@ public class AlbumController {
                     boolean isFavorite = userId != null && musicService.isFavorite(userId, musicId);
                     return new MusicVo(music, album, musicArtistVos, musicResourceVos, heiMusicConfig, minIOConfig, isFavorite);
                 })
+                .sorted(Comparator.comparing(MusicVo::getDiscNumber).thenComparing(MusicVo::getTrackNumber))
                 .collect(Collectors.toList());
 
         return new Response<>(0, "ok", musicVos);
