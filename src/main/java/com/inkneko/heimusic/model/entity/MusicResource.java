@@ -6,12 +6,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.Date;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class MusicResource {
+public class MusicResource implements Serializable {
     /**
      * CREATE TABLE music_resource(
      *     music_resource_id INT PRIMARY KEY AUTO_INCREMENT,

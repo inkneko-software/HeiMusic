@@ -6,12 +6,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.Date;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class MusicFavorite {
+public class MusicFavorite implements Serializable {
     private Integer musicId;
     private Integer userId;
     private Date createdAt;
