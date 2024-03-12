@@ -10,10 +10,12 @@ import com.inkneko.heimusic.mapper.MusicResourceMapper;
 import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.Serializable;
 import java.util.*;
 
 @Service
@@ -48,6 +50,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return
      */
     @Override
+    @Cacheable("getMusicResource")
     public MusicResource getMusicResource(Integer resourceId) {
         return musicResourceMapper.selectById(resourceId);
     }
@@ -79,6 +82,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 该音乐下所有的资源
      */
     @Override
+    @Cacheable("getMusicResources")
     public List<MusicResource> getMusicResources(Integer musicId) {
         return musicResourceMapper.selectList(new LambdaQueryWrapper<MusicResource>().eq(MusicResource::getMusicId, musicId));
     }
@@ -90,6 +94,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 艺术家列表
      */
     @Override
+    @Cacheable("getMusicArtists")
     public List<MusicArtist> getMusicArtists(Integer musicId) {
         return musicArtistMapper.selectList(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getMusicId, musicId));
     }
@@ -143,6 +148,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 是否为收藏音乐
      */
     @Override
+    @Cacheable("isFavorite")
     public boolean isFavorite(Integer userId, Integer musicId) {
         return musicFavoriteMapper.exists(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
     }
@@ -219,5 +225,16 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             result.put(music, musicArtists);
         }
         return result;
+    }
+
+    /**
+     * 根据 ID 查询
+     *
+     * @param id 主键ID
+     */
+    @Override
+    @Cacheable("getMusicById")
+    public Music getById(Serializable id) {
+        return super.getById(id);
     }
 }

@@ -4,7 +4,9 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 
+@EnableCaching
 @SpringBootApplication
 @OpenAPIDefinition(info = @Info(description = "HeiMusic! 服务端API说明", version = "0.2.1"))
 public class HeiMusicApplication {

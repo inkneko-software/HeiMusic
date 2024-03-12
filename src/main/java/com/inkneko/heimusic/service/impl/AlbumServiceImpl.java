@@ -13,9 +13,12 @@ import com.inkneko.heimusic.model.vo.MusicVo;
 import com.inkneko.heimusic.service.AlbumService;
 import com.inkneko.heimusic.service.MusicService;
 import org.checkerframework.checker.units.qual.A;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -80,6 +83,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @return 该专辑的音乐列表
      */
     @Override
+    @Cacheable("getAlbumMusicList")
     public List<AlbumMusic> getAlbumMusicList(Integer albumId) {
         return albumMusicMapper.selectList(new LambdaQueryWrapper<AlbumMusic>().eq(AlbumMusic::getAlbumId, albumId));
     }
@@ -126,6 +130,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @param newArtistIds 新的艺术家信息
      */
     @Override
+    @CacheEvict("getAlbumArtist")
     public void updateAlbumArtist(Integer albumId, List<Integer> newArtistIds) {
         albumArtistMapper.delete(new LambdaQueryWrapper<AlbumArtist>().eq(AlbumArtist::getAlbumId, albumId));
         addAlbumArtist(albumId, newArtistIds);
@@ -137,6 +142,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @param artistIds 艺术家
      */
     @Override
+    @CacheEvict("getAlbumArtist")
     public void removeAlbumArtist(Integer albumId, List<Integer> artistIds) {
         for(Integer artistId : artistIds){
             albumArtistMapper.delete(new LambdaQueryWrapper<AlbumArtist>().eq(AlbumArtist::getAlbumId, albumId).eq(AlbumArtist::getArtistId, artistId));
@@ -150,6 +156,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @return 艺术家列表
      */
     @Override
+    @Cacheable("getAlbumArtist")
     public List<AlbumArtist> getAlbumArtist(Integer albumId) {
         return albumArtistMapper.selectList(new LambdaQueryWrapper<AlbumArtist>().eq(AlbumArtist::getAlbumId, albumId));
     }
@@ -162,6 +169,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @return 专辑列表
      */
     @Override
+    @Cacheable("getRecentUpload")
     public List<Album> getRecentUpload(Integer current, Integer size) {
         IPage<Album> page = this.page(new Page<>(current, size), new LambdaQueryWrapper<Album>().orderByDesc(Album::getAlbumId));
         return page.getRecords();
@@ -174,6 +182,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @return 音乐数量
      */
     @Override
+    @Cacheable("getAlbumMusicNum")
     public Long getAlbumMusicNum(Integer albumId) {
         return albumMusicMapper.selectCount(new LambdaQueryWrapper<AlbumMusic>().eq(AlbumMusic::getAlbumId, albumId));
     }
@@ -198,4 +207,16 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
 //
 //        return new AlbumVo(album, artistVoList, musicVoList);
 //    }
+
+
+    /**
+     * 根据 ID 查询
+     *
+     * @param id 主键ID
+     */
+    @Override
+    @Cacheable("getAlbumById")
+    public Album getById(Serializable id) {
+        return super.getById(id);
+    }
 }
