@@ -54,7 +54,7 @@ public class MusicScannerJob implements SchedulingConfigurer {
         if (heiMusicConfig.getStorageType().compareTo("local") != 0) {
             return;
         }
-
+        //根据音乐文件的路径，判断文件是否已扫描过
         Predicate<File> isMusicScanedPredicate = file -> !musicService.getBaseMapper().selectList(new LambdaQueryWrapper<Music>().eq(Music::getFilePath, file.getAbsolutePath())).isEmpty();
 
         Consumer<Album> albumConsumer = (com.inkneko.heimusic.util.music.model.Album album) -> {
@@ -98,6 +98,8 @@ public class MusicScannerJob implements SchedulingConfigurer {
                 music.setDiscNumber(track.getDiscNumber());
                 music.setDiscTotal(track.getDiscTotal());
                 music.setArtist(track.getArtist());
+                music.setDiscStartTime(track.getDiskStartTime());
+                music.setDiscEndTime(track.getDiskEndTime());
                 musicService.save(music);
                 savedMusicList.add(music.getMusicId());
                 log.info("专辑：{}，扫描到音乐{}", album.getTitle(), music);
