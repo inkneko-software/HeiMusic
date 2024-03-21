@@ -119,7 +119,7 @@ public class MusicScanner {
         log.info("扫描到CUE，路径：{}", cueFile.getAbsolutePath());
         /*
          * 多个CUE + 多个音轨
-         * 	对于每个CUE，作为一个专辑（实际上是一个专辑。但TITLE会将说明是第几个盘。所以留给用户处理合并）
+         * 	对于每个CUE，使用其TITLE作为专辑名称（可能实际上多个CUE是同一个专辑，但名称是专辑名 + 盘号，这里判断成独立的专辑。留给用户处理合并）
          * 		每个CUE下会有一个或多个FILE。对于每个FILE，下面可能会有一个或多个TRACK。这些为实际的音乐
          * 			如果当前FILE下只有一个TRACK，则不进行转码
          * 			如果当前FILE下有多个TRACK，则需要转码
@@ -136,7 +136,7 @@ public class MusicScanner {
                 album.setTitle(cue.getTitle());
             }
             album.setArtist(cue.getPerformer());
-
+            //封面选取自当前文件夹的图片
             if (!imageFiles.isEmpty()) {
                 List<File> filesNamedWithCover = imageFiles.stream()
                         .filter(filePath -> filePath.getName().toLowerCase().startsWith("cover"))
@@ -157,18 +157,25 @@ public class MusicScanner {
                     Track track = new Track();
                     track.setTrackNumber(cueTrack.getTrackNumber());
                     track.setArtist(cueTrack.getPerformer());
+                    //如果track没有performer，则使用专辑的performer
+                    if (cueTrack.getPerformer() == null || cueTrack.getPerformer().isBlank()){
+                        track.setArtist(cue.getPerformer());
+                    }
                     track.setTitle(cueTrack.getTitle());
                     File musicFilePath = new File(cueFile.getParentFile(), musicFile.getFilename());
                     track.setFilepath(musicFilePath.getAbsolutePath());
-                    //如果是多个音乐在一个音乐文件内，则设置起始时间和结束时间
+                    ProbeResult result = MusicProber.probe(musicFilePath);
+                    Format format = result.getFormat();
+                    Tags tags = format.getTags();
                     if (isMultiTracksFile) {
-                        track.setDiskStartTime(track.getDiskStartTime());
-                        track.setDiskEndTime(track.getDiskEndTime());
+                        //如果是多个音乐在一个音乐文件内，则设置起始时间和结束时间
+                        track.setDiskStartTime(cueTrack.getStartTimeString());
+                        track.setDiskEndTime(cueTrack.getEndTimeString());
+                        if (cueTrack.getEndTimeString() == null || cueTrack.getEndTimeString().isBlank()){
+                            track.setDiskEndTime(format.getDuration());
+                        }
                     } else {
                         //如果是每个音乐为一个文件的情形，考虑使用文件中的tag信息
-                        ProbeResult result = MusicProber.probe(musicFilePath);
-                        Format format = result.getFormat();
-                        Tags tags = format.getTags();
                         if (tags != null) {
                             track.setArtist(tags.getArtist());
                             if (tags.getTitle() != null) {
