@@ -16,6 +16,18 @@ USE heimusic;
 CREATE USER 'user'@'%' identified by 'password';
 ```
 
+## 应用程序信息
+
+### 版本信息
+
+```sql
+CREATE TABLE IF NOT EXISTS heimusic_application_info(
+    version VARCHAR(255) NOT NULL DEFAULT 'current',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+)Engine=InnoDB Default Charset=UTF8MB4;
+```
+
 ## 用户相关表
 
 ### 用户信息
@@ -131,6 +143,8 @@ CREATE TABLE IF NOT EXISTS music(
     artist VARCHAR(255) NOT NULL DEFAULT '' COMMENT '该歌曲的艺术家（所有艺术家的名称）',
     file_path VARCHAR(255) NOT NULL DEFAULT '' COMMENT '该文件的路径',
     file_hash VARCHAR(255) NOT NULL DEFAULT '' COMMENT '该文件的哈希值',
+    disc_start_time VARCHAR(255) NOT NULL DEFAULT '' COMMENT '音轨中音乐的起始时间，以秒为单位',
+    disc_end_time VARCHAR(255) NOT NULL DEFAULT '' COMMENT '音轨中音乐的结束时间，以秒为单位',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP DEFAULT NULL
