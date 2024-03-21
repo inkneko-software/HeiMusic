@@ -21,6 +21,8 @@ public class MusicVo {
     Integer trackTotal;
     Integer discNumber;
     Integer discTotal;
+    String discStartTime;
+    String discEndTime;
     String artist;
     Integer albumId;
     String albumTitle;
@@ -42,6 +44,8 @@ public class MusicVo {
         this.trackTotal = music.getTrackTotal();
         this.discNumber = music.getDiscNumber();
         this.discTotal = music.getDiscTotal();
+        this.discStartTime = music.getDiscStartTime();
+        this.discEndTime = music.getDiscEndTime();
         this.artistList = artistList;
         this.resourceList = resourceList;
         this.albumId = album.getAlbumId();

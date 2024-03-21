@@ -30,6 +30,8 @@ public class Music implements Serializable {
     String artist;
     String filePath;
     String fileHash;
+    String discStartTime;
+    String discEndTime;
     Date createdAt;
     Date updatedAt;
     Date deletedAt;
