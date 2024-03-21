@@ -176,6 +176,12 @@ public class MusicScanner {
                         }
                     } else {
                         //如果是每个音乐为一个文件的情形，考虑使用文件中的tag信息
+                        if (format != null){
+                            track.setBitrate(format.getBitrate());
+                            track.setDuration(format.getDuration());
+                            track.setFormatName(format.getFormatName());
+                            track.setSize(format.getSize());
+                        }
                         if (tags != null) {
                             track.setArtist(tags.getArtist());
                             if (tags.getTitle() != null) {
@@ -184,10 +190,7 @@ public class MusicScanner {
                             if (tags.getAlbumArtist() != null) {
                                 album.setArtist(tags.getAlbumArtist());
                             }
-                            track.setBitrate(format.getBitrate());
-                            track.setDuration(format.getDuration());
-                            track.setFormatName(format.getFormatName());
-                            track.setSize(format.getSize());
+
                             try {
                                 if (tags.getTrack() != null) {
                                     track.setTrackNumber(parseTrackNumber(tags.getTrack()));
@@ -307,6 +310,12 @@ public class MusicScanner {
                 Track track = new Track();
                 track.setFilepath(musicFile.getAbsolutePath());
                 track.setTitle(musicFile.getName());
+                if (format != null){
+                    track.setBitrate(format.getBitrate());
+                    track.setDuration(format.getDuration());
+                    track.setFormatName(format.getFormatName());
+                    track.setSize(format.getSize());
+                }
                 if (tags != null) {
                     track.setArtist(tags.getArtist());
                     if (tags.getTitle() != null) {
@@ -315,10 +324,7 @@ public class MusicScanner {
                     if (tags.getAlbumArtist() != null) {
                         album.setArtist(tags.getAlbumArtist());
                     }
-                    track.setBitrate(format.getBitrate());
-                    track.setDuration(format.getDuration());
-                    track.setFormatName(format.getFormatName());
-                    track.setSize(format.getSize());
+
                     try {
                         if (tags.getTrack() != null) {
                             track.setTrackNumber(parseTrackNumber(tags.getTrack()));
