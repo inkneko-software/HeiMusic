@@ -1,5 +1,6 @@
 server:
   port: 9001
+  forward-headers-strategy: framework
 spring:
   datasource:
     druid:
@@ -54,8 +55,6 @@ heimusic:
     #cdn: https://static-files.example.com
     accessKey: example_ak
     secretKey: example_sk
-  redis:
-    url: "redis://redis:6379"
   is-encode-node: true
 
 springdoc:
