@@ -10,6 +10,8 @@ import com.inkneko.heimusic.mapper.MusicResourceMapper;
 import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -46,11 +48,11 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     /**
      * 查询音乐资源
      *
-     * @param resourceId
-     * @return
+     * @param resourceId 资源id
+     * @return 音乐资源
      */
     @Override
-    @Cacheable("getMusicResource")
+    @Cacheable(cacheNames = "musicResource", key = "#resourceId")
     public MusicResource getMusicResource(Integer resourceId) {
         return musicResourceMapper.selectById(resourceId);
     }
@@ -58,9 +60,10 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     /**
      * 删除音乐资源
      *
-     * @param resourceId
+     * @param resourceId 资源id
      */
     @Override
+    @CacheEvict(cacheNames = "musicResource", key = "#resourceId")
     public void removeMusicResource(Integer resourceId) {
         musicResourceMapper.deleteById(resourceId);
     }
@@ -68,9 +71,10 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     /**
      * 更新音乐资源
      *
-     * @param musicResource
+     * @param musicResource 音乐资源
      */
     @Override
+    @CacheEvict(cacheNames = "musicResource", key = "#musicResource.musicResourceId")
     public void updateMusicResource(MusicResource musicResource) {
         musicResourceMapper.updateById(musicResource);
     }
@@ -82,7 +86,6 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 该音乐下所有的资源
      */
     @Override
-    @Cacheable("getMusicResources")
     public List<MusicResource> getMusicResources(Integer musicId) {
         return musicResourceMapper.selectList(new LambdaQueryWrapper<MusicResource>().eq(MusicResource::getMusicId, musicId));
     }
@@ -94,7 +97,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 艺术家列表
      */
     @Override
-    @Cacheable("getMusicArtists")
+    @Cacheable(cacheNames = "musicArtistList", key = "#musicId")
     public List<MusicArtist> getMusicArtists(Integer musicId) {
         return musicArtistMapper.selectList(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getMusicId, musicId));
     }
@@ -106,6 +109,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param artistIds
      */
     @Override
+    @CacheEvict(cacheNames = "musicArtistList", key = "#musicId")
     public void addMusicArtists(Integer musicId, List<Integer> artistIds) {
         artistIds.forEach(artistId -> musicArtistMapper.insert(new MusicArtist(musicId, artistId)));
     }
@@ -117,6 +121,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param artistNames 艺术家名称列表
      */
     @Override
+    @CacheEvict(cacheNames = "musicArtistList", key = "#musicId")
     public void addMusicArtistsWithName(Integer musicId, List<String> artistNames) {
         artistNames.forEach(artistName -> {
             Artist artist = artistService.getOne(new LambdaQueryWrapper<Artist>().eq(Artist::getName, artistName));
@@ -136,6 +141,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param artistIds
      */
     @Override
+    @CacheEvict(cacheNames = "musicArtistList", key = "#musicId")
     public void removeMusicArtists(Integer musicId, List<Integer> artistIds) {
         artistIds.forEach(artistId -> musicArtistMapper.delete(new LambdaQueryWrapper<MusicArtist>().eq(MusicArtist::getArtistId, artistId).eq(MusicArtist::getMusicId, musicId)));
     }
@@ -148,9 +154,50 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 是否为收藏音乐
      */
     @Override
-    @Cacheable("isFavorite")
+    @Cacheable(cacheNames = "musicFavorite", key = "#userId + '_' + #musicId")
     public boolean isFavorite(Integer userId, Integer musicId) {
         return musicFavoriteMapper.exists(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
+    }
+
+    /**
+     * 查询用户收藏音乐列表
+     *
+     * @param userId 用户id
+     * @return 收藏音乐列表
+     */
+    @Override
+    public List<MusicFavorite> getUserMusicFavoriteList(Integer userId) {
+        return musicFavoriteMapper.selectList(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).orderByDesc(MusicFavorite::getCreatedAt));
+    }
+
+    /**
+     * 添加某用户收藏的音乐
+     *
+     * @param userId  用户id
+     * @param musicId 音乐id
+     */
+    @Override
+    @CacheEvict(cacheNames = "musicFavorite", key = "#userId + '_' + #musicId")
+    public void addUserMusicFavorite(Integer userId, Integer musicId) {
+        if (getById(musicId) == null){
+            throw new ServiceException(404, "指定音乐不存在");
+        }
+
+        try {
+            musicFavoriteMapper.insert(new MusicFavorite(musicId, userId, null, null));
+        } catch (DuplicateKeyException ignored) {}
+    }
+
+    /**
+     * 移除某用户收藏的音乐
+     *
+     * @param userId  用户id
+     * @param musicId 音乐id
+     */
+    @Override
+    @CacheEvict(cacheNames = "musicFavorite", key = "#userId + '_' + #musicId")
+    public void removeUserMusicFavorite(Integer userId, Integer musicId) {
+        musicFavoriteMapper.delete(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
     }
 
     /**
@@ -161,6 +208,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Transactional
     @Override
+    @CacheEvict(cacheNames = "musicArtistList", key = "#musicId")
     public void updateMusicArtists(Integer musicId, List<Integer> artistIds) {
         Music music = getById(musicId);
         if (music == null) {
@@ -185,6 +233,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param artistNames 欲指定的艺术家id
      */
     @Override
+    @CacheEvict(cacheNames = "musicArtistList", key = "#musicId")
     public void updateMusicArtistsWithName(Integer musicId, List<String> artistNames) {
         Music music = getById(musicId);
         if (music == null) {
@@ -233,8 +282,32 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param id 主键ID
      */
     @Override
-    @Cacheable("getMusicById")
+    @Cacheable(cacheNames = "music", key = "#id")
     public Music getById(Serializable id) {
         return super.getById(id);
+    }
+
+
+    /**
+     * 根据实体(ID)删除
+     *
+     * @param entity 实体
+     * @since 3.4.4
+     */
+    @Override
+    @CacheEvict(cacheNames = "music", key = "#entity.musicId")
+    public boolean removeById(Music entity) {
+        return super.removeById(entity);
+    }
+
+    /**
+     * 根据 ID 选择修改
+     *
+     * @param entity 实体对象
+     */
+    @Override
+    @CachePut(cacheNames = "music", key = "#entity.musicId")
+    public boolean updateById(Music entity) {
+        return super.updateById(entity);
     }
 }
