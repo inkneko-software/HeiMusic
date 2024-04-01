@@ -3,6 +3,7 @@ package com.inkneko.heimusic.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.model.entity.MusicArtist;
+import com.inkneko.heimusic.model.entity.MusicFavorite;
 import com.inkneko.heimusic.model.entity.MusicResource;
 
 import java.util.List;
@@ -103,6 +104,31 @@ public interface MusicService extends IService<Music> {
      * @return 是否为收藏音乐
      */
     boolean isFavorite(Integer userId, Integer musicId);
+
+    /**
+     * 查询用户收藏音乐列表
+     *
+     * @param userId 用户id
+     * @return 收藏音乐列表
+     */
+    List<MusicFavorite> getUserMusicFavoriteList(Integer userId);
+
+    /**
+     * 添加某用户收藏的音乐
+     *
+     * @param userId 用户id
+     * @param musicId 音乐id
+     */
+    void addUserMusicFavorite(Integer userId, Integer musicId);
+
+    /**
+     * 移除某用户收藏的音乐
+     *
+     * @param userId 用户id
+     * @param musicId 音乐id
+     */
+    void removeUserMusicFavorite(Integer userId, Integer musicId);
+
 
     /**
      * 查询包含指定艺术家的音乐

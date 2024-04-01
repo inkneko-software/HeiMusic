@@ -16,6 +16,7 @@ import com.inkneko.heimusic.model.vo.Response;
 import com.inkneko.heimusic.service.AlbumService;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
+import com.inkneko.heimusic.util.auth.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.*;
@@ -33,14 +34,12 @@ public class PlaylistController {
     MusicService musicService;
     ArtistService artistService;
 
-    MusicFavoriteMapper musicFavoriteMapper;
     MinIOConfig minIOConfig;
     HeiMusicConfig heiMusicConfig;
 
     public PlaylistController(AlbumService albumService, MusicService musicService, MusicFavoriteMapper musicFavoriteMapper, MinIOConfig minIOConfig, ArtistService artistService, HeiMusicConfig heiMusicConfig) {
         this.albumService = albumService;
         this.musicService = musicService;
-        this.musicFavoriteMapper = musicFavoriteMapper;
         this.minIOConfig = minIOConfig;
         this.artistService = artistService;
         this.heiMusicConfig = heiMusicConfig;
@@ -52,7 +51,7 @@ public class PlaylistController {
     public Response<List<MusicVo>> getMyFavoriteMusicList(HttpServletRequest request) {
         Integer userId = (Integer) request.getAttribute("userId");
         //查询用户收藏的音乐
-        List<MusicFavorite> userMusicFavoriteList = musicFavoriteMapper.selectList(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).orderByDesc(MusicFavorite::getCreatedAt));
+        List<MusicFavorite> userMusicFavoriteList = musicService.getUserMusicFavoriteList(userId);
         //提取音乐ID
         List<Integer> musicIdList = userMusicFavoriteList.stream().map(MusicFavorite::getMusicId).collect(Collectors.toList());
         if (musicIdList.isEmpty()) {
@@ -92,12 +91,8 @@ public class PlaylistController {
     @Operation(summary = "收藏音乐")
     @PostMapping("/addMusicFavorite")
     public Response<?> addMusicFavorite(@RequestParam Integer musicId, HttpServletRequest request) {
-        Integer userId = (Integer) request.getAttribute("userId");
-        MusicFavorite musicFavorite = new MusicFavorite(musicId, userId, null, null);
-        try {
-            musicFavoriteMapper.insert(musicFavorite);
-        } catch (DuplicateKeyException ignored) {
-        }
+        Integer userId = AuthUtils.auth();
+        musicService.addUserMusicFavorite(userId,musicId);
         return new Response<>(0, "ok");
     }
 
@@ -105,8 +100,8 @@ public class PlaylistController {
     @Operation(summary = "取消收藏音乐")
     @PostMapping("/removeMusicFavorite")
     public Response<?> removeMusicFavorite(@RequestParam Integer musicId, HttpServletRequest request) {
-        Integer userId = (Integer) request.getAttribute("userId");
-        musicFavoriteMapper.delete(new LambdaQueryWrapper<MusicFavorite>().eq(MusicFavorite::getUserId, userId).eq(MusicFavorite::getMusicId, musicId));
+        Integer userId = AuthUtils.auth();
+        musicService.removeUserMusicFavorite(userId, musicId);
         return new Response<>(0, "ok");
     }
 
