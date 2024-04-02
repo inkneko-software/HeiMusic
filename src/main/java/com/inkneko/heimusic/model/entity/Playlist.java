@@ -16,7 +16,9 @@ public class Playlist {
     private Integer playlistId;
     private Integer userId;
     private String description;
+    private Integer sequenceNumber;
     private String coverUrl;
+    private Integer playCount;
     private Date createdAt;
     private Date updatedAt;
 }

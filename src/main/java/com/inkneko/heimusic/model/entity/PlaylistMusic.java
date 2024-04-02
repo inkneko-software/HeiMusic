@@ -14,6 +14,7 @@ import java.util.Date;
 public class PlaylistMusic {
     private Integer playlistId;
     private Integer musicId;
+    private Integer sequenceNumber;
     private Date createdAt;
     private Date updatedAt;
 
