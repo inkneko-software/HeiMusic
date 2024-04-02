@@ -198,7 +198,9 @@ CREATE TABLE IF NOT EXISTS playlist(
     playlist_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT COMMENT '歌单id',
     user_id INT NOT NULL COMMENT '创建者用户id',
     description VARCHAR(255) COMMENT '歌单简介',
+    sequence_number INT NOT NULL DEFAULT 0 COMMENT '自定义排序编号',
     cover_url VARCHAR(255) COMMENT '歌单封面',
+    play_count VARCHAR(255) COMMENT '播放次数',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )Engine=InnoDB default charset=utf8mb4;
@@ -210,6 +212,7 @@ CREATE TABLE IF NOT EXISTS playlist(
 CREATE TABLE IF NOT EXISTS playlist_music(
     playlist_id INT NOT NULL COMMENT '歌单id',
     music_id INT NOT NULL COMMENT '音乐id',
+    sequence_number INT NOT NULL DEFAULT 0 COMMENT '自定义排序编号',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY(playlist_id, music_id)
@@ -222,6 +225,7 @@ CREATE TABLE IF NOT EXISTS playlist_music(
 CREATE TABLE IF NOT EXISTS playlist_subscribe(
     playlist_id INT NOT NULL COMMENT '歌单id',
     user_id INT NOT NULL COMMENT '收藏者用户id',
+    sequence_number INT NOT NULL DEFAULT 0 COMMENT '自定义排序编号',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY(playlist_id, user_id)
