@@ -15,6 +15,7 @@ public class Playlist {
     @TableId(type = IdType.AUTO)
     private Integer playlistId;
     private Integer userId;
+    private String title;
     private String description;
     private Integer sequenceNumber;
     private String coverUrl;

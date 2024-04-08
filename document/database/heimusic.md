@@ -197,6 +197,7 @@ CREATE TABLE IF NOT EXISTS music_favorite(
 CREATE TABLE IF NOT EXISTS playlist(
     playlist_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT COMMENT '歌单id',
     user_id INT NOT NULL COMMENT '创建者用户id',
+    title VARCHAR(255) NOT NULL DEFAULT '' COMMENT '歌单名称',
     description VARCHAR(255) NOT NULL DEFAULT '' COMMENT '歌单简介',
     sequence_number INT NOT NULL DEFAULT 0 COMMENT '自定义排序编号',
     cover_url VARCHAR(255) COMMENT '歌单封面',
