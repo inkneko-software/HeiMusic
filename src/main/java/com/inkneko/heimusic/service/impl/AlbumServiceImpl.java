@@ -4,23 +4,21 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.inkneko.heimusic.mapper.*;
-import com.inkneko.heimusic.model.entity.*;
-import com.inkneko.heimusic.model.vo.AlbumVo;
-import com.inkneko.heimusic.model.vo.ArtistVo;
-import com.inkneko.heimusic.model.vo.MusicResourceVo;
-import com.inkneko.heimusic.model.vo.MusicVo;
+import com.inkneko.heimusic.mapper.AlbumArtistMapper;
+import com.inkneko.heimusic.mapper.AlbumMapper;
+import com.inkneko.heimusic.mapper.AlbumMusicMapper;
+import com.inkneko.heimusic.model.entity.Album;
+import com.inkneko.heimusic.model.entity.AlbumArtist;
+import com.inkneko.heimusic.model.entity.AlbumMusic;
+import com.inkneko.heimusic.model.entity.Artist;
 import com.inkneko.heimusic.service.AlbumService;
 import com.inkneko.heimusic.service.MusicService;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -40,7 +38,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     /**
      * 向指定专辑添加音乐信息
      *
-     * @param albumId 指定专辑的id
+     * @param albumId  指定专辑的id
      * @param musicIds 要添加音乐的id
      */
     @Override
@@ -59,7 +57,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     @Override
     public Album getAlbumMusicByMusicId(Integer musicId) {
         AlbumMusic albumMusic = albumMusicMapper.selectOne(new LambdaQueryWrapper<AlbumMusic>().eq(AlbumMusic::getMusicId, musicId));
-        if (albumMusic == null){
+        if (albumMusic == null) {
             return null;
         }
         return getById(albumMusic.getAlbumId());
@@ -68,7 +66,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
     /**
      * 删除指定专辑的音乐
      *
-     * @param albumId 专辑id
+     * @param albumId  专辑id
      * @param musicIds 音乐id
      */
     @Override
@@ -93,13 +91,14 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
 
     /**
      * 向指定专辑添加艺术家信息
-     * @param albumId 专辑
+     *
+     * @param albumId   专辑
      * @param artistIds 艺术家ID
      */
     @Override
     @CacheEvict(cacheNames = "albumArtistList", key = "#albumId")
     public void addAlbumArtist(Integer albumId, List<Integer> artistIds) {
-        for(Integer artistId : artistIds){
+        for (Integer artistId : artistIds) {
             albumArtistMapper.insert(new AlbumArtist(albumId, artistId));
         }
     }
@@ -122,7 +121,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
             }
             try {
                 albumArtistMapper.insert(new AlbumArtist(albumId, artist.getArtistId()));
-            }catch (DataIntegrityViolationException ignored){
+            } catch (DataIntegrityViolationException ignored) {
                 //忽略重复添加
             }
         });
@@ -143,13 +142,14 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
 
     /**
      * 删除指定专辑的艺术家信息
-     * @param albumId 专辑
+     *
+     * @param albumId   专辑
      * @param artistIds 艺术家
      */
     @Override
     @CacheEvict(cacheNames = "albumArtistList", key = "#albumId")
     public void removeAlbumArtist(Integer albumId, List<Integer> artistIds) {
-        for(Integer artistId : artistIds){
+        for (Integer artistId : artistIds) {
             albumArtistMapper.delete(new LambdaQueryWrapper<AlbumArtist>().eq(AlbumArtist::getAlbumId, albumId).eq(AlbumArtist::getArtistId, artistId));
         }
     }
@@ -170,7 +170,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * 获取最近上传
      *
      * @param current 当前页数
-     * @param size 页面大小
+     * @param size    页面大小
      * @return 专辑列表
      */
     @Override
@@ -220,7 +220,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @param entity 实体对象
      */
     @Override
-    @CachePut(cacheNames = "album", key = "#entity.albumId")
+    @CacheEvict(cacheNames = "album", key = "#entity.albumId")
     public boolean updateById(Album entity) {
         return super.updateById(entity);
     }
