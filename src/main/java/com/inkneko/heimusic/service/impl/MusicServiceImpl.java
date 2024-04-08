@@ -3,10 +3,7 @@ package com.inkneko.heimusic.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.inkneko.heimusic.exception.ServiceException;
-import com.inkneko.heimusic.mapper.MusicArtistMapper;
-import com.inkneko.heimusic.mapper.MusicFavoriteMapper;
-import com.inkneko.heimusic.mapper.MusicMapper;
-import com.inkneko.heimusic.mapper.MusicResourceMapper;
+import com.inkneko.heimusic.mapper.*;
 import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
@@ -19,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements MusicService {
@@ -26,12 +24,55 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     MusicArtistMapper musicArtistMapper;
     ArtistService artistService;
     MusicFavoriteMapper musicFavoriteMapper;
+    PlaylistMapper playlistMapper;
+    PlaylistMusicMapper playlistMusicMapper;
+    PlaylistSubscribeMapper playlistSubscribeMapper;
+    AuthServiceImpl authService;
 
-    public MusicServiceImpl(MusicResourceMapper musicResourceMapper, MusicArtistMapper musicArtistMapper, ArtistService artistService, MusicFavoriteMapper musicFavoriteMapper) {
+    public MusicServiceImpl(MusicResourceMapper musicResourceMapper, MusicArtistMapper musicArtistMapper, ArtistService artistService, MusicFavoriteMapper musicFavoriteMapper, PlaylistMapper playlistMapper, PlaylistMusicMapper playlistMusicMapper, PlaylistSubscribeMapper playlistSubscribeMapper, AuthServiceImpl authService) {
         this.musicResourceMapper = musicResourceMapper;
         this.musicArtistMapper = musicArtistMapper;
         this.artistService = artistService;
         this.musicFavoriteMapper = musicFavoriteMapper;
+        this.playlistMapper = playlistMapper;
+        this.playlistMusicMapper = playlistMusicMapper;
+        this.playlistSubscribeMapper = playlistSubscribeMapper;
+        this.authService = authService;
+    }
+
+    /**
+     * 根据 ID 查询
+     *
+     * @param id 主键ID
+     */
+    @Override
+    @Cacheable(cacheNames = "music", key = "#id")
+    public Music getById(Serializable id) {
+        return super.getById(id);
+    }
+
+
+    /**
+     * 根据实体(ID)删除
+     *
+     * @param entity 实体
+     * @since 3.4.4
+     */
+    @Override
+    @CacheEvict(cacheNames = "music", key = "#entity.musicId")
+    public boolean removeById(Music entity) {
+        return super.removeById(entity);
+    }
+
+    /**
+     * 根据 ID 选择修改
+     *
+     * @param entity 实体对象
+     */
+    @Override
+    @CachePut(cacheNames = "music", key = "#entity.musicId")
+    public boolean updateById(Music entity) {
+        return super.updateById(entity);
     }
 
     /**
@@ -179,13 +220,14 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Override
     @CacheEvict(cacheNames = "musicFavorite", key = "#userId + '_' + #musicId")
     public void addUserMusicFavorite(Integer userId, Integer musicId) {
-        if (getById(musicId) == null){
+        if (getById(musicId) == null) {
             throw new ServiceException(404, "指定音乐不存在");
         }
 
         try {
             musicFavoriteMapper.insert(new MusicFavorite(musicId, userId, null, null));
-        } catch (DuplicateKeyException ignored) {}
+        } catch (DuplicateKeyException ignored) {
+        }
     }
 
     /**
@@ -277,37 +319,180 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     }
 
     /**
-     * 根据 ID 查询
+     * 创建歌单
      *
-     * @param id 主键ID
+     * @param playlist 歌单信息
      */
     @Override
-    @Cacheable(cacheNames = "music", key = "#id")
-    public Music getById(Serializable id) {
-        return super.getById(id);
-    }
-
-
-    /**
-     * 根据实体(ID)删除
-     *
-     * @param entity 实体
-     * @since 3.4.4
-     */
-    @Override
-    @CacheEvict(cacheNames = "music", key = "#entity.musicId")
-    public boolean removeById(Music entity) {
-        return super.removeById(entity);
+    public void addPlaylist(Playlist playlist) {
+        playlistMapper.insert(playlist);
     }
 
     /**
-     * 根据 ID 选择修改
+     * 删除歌单。
      *
-     * @param entity 实体对象
+     * @param playlistId 指定的歌单ID
+     * @param userId     提交删除请求的用户id
      */
     @Override
-    @CachePut(cacheNames = "music", key = "#entity.musicId")
-    public boolean updateById(Music entity) {
-        return super.updateById(entity);
+    public void removePlaylist(Integer playlistId, Integer userId) {
+        Playlist playlist = playlistMapper.selectById(playlistId);
+        if (playlist == null) {
+            throw new ServiceException(404, "所指定歌单不存在");
+        }
+
+        if (!playlist.getUserId().equals(userId)) {
+            throw new ServiceException(403, "权限不足，您不是该歌单创建者");
+        }
+
+        playlistMapper.deleteById(playlistId);
+    }
+
+    /**
+     * 更新歌单信息
+     *
+     * @param playlist 歌单信息
+     * @param userId   提交更新请求的用户id
+     */
+    @Override
+    public void updatePlaylist(Playlist playlist, Integer userId) {
+        Playlist oldPlaylist = playlistMapper.selectById(playlist.getPlaylistId());
+        if (oldPlaylist == null) {
+            throw new ServiceException(404, "所指定歌单不存在");
+        }
+        if (!oldPlaylist.getUserId().equals(userId)) {
+            throw new ServiceException(403, "权限不足，您不是该歌单创建者");
+        }
+
+        playlist.setUserId(userId);
+        playlistMapper.updateById(playlist);
+    }
+
+    /**
+     * 添加歌单音乐
+     *
+     * @param playlistId  歌单id
+     * @param musicIdList 音乐id列表
+     * @param userId      提交请求的用户id
+     */
+    @Override
+    public void addPlaylistMusic(Integer playlistId, List<Integer> musicIdList, Integer userId) {
+        Playlist playlist = playlistMapper.selectById(playlistId);
+        if (playlist == null) {
+            throw new ServiceException(404, "所指定歌单不存在");
+        }
+
+        if (!playlist.getUserId().equals(userId)) {
+            throw new ServiceException(403, "权限不足，您不是该歌单创建者");
+        }
+        try {
+            for (Integer musicId : musicIdList) {
+                playlistMusicMapper.insert(new PlaylistMusic(playlistId, musicId, null, null, null));
+            }
+        } catch (DuplicateKeyException ignored) {
+        }
+    }
+
+    /**
+     * 移除歌单中的音乐
+     *
+     * @param playlistId  歌单id
+     * @param musicIdList 音乐id列表
+     * @param userId      发起者用户id
+     */
+    @Override
+    public void removePlaylistMusic(Integer playlistId, List<Integer> musicIdList, Integer userId) {
+        Playlist playlist = playlistMapper.selectById(playlistId);
+        if (playlist == null) {
+            throw new ServiceException(404, "所指定歌单不存在");
+        }
+
+        if (!playlist.getUserId().equals(userId)) {
+            throw new ServiceException(403, "权限不足，您不是该歌单创建者");
+        }
+        for (Integer musicId : musicIdList) {
+            playlistMusicMapper.delete(new LambdaQueryWrapper<PlaylistMusic>().eq(PlaylistMusic::getPlaylistId, playlistId).eq(PlaylistMusic::getMusicId, musicId));
+        }
+    }
+
+    /**
+     * 查询歌单下的音乐
+     *
+     * @param playlistId 歌单id
+     * @return 指定歌单的音乐列表
+     */
+    @Override
+    public List<Music> getPlaylistMusicList(Integer playlistId) {
+        Playlist playlist = playlistMapper.selectById(playlistId);
+        if (playlist == null) {
+            throw new ServiceException(404, "所指定歌单不存在");
+        }
+
+        return playlistMusicMapper.selectList(new LambdaQueryWrapper<PlaylistMusic>().eq(PlaylistMusic::getPlaylistId, playlistId)).stream().map(playlistMusic -> getById(playlistMusic.getMusicId())).collect(Collectors.toList());
+    }
+
+    /**
+     * 查询歌单信息
+     *
+     * @param playlistId 歌单id
+     * @return 歌单信息
+     */
+    @Override
+    public Playlist getPlaylist(Integer playlistId) {
+        Playlist result = playlistMapper.selectById(playlistId);
+        if (result == null) {
+            throw new ServiceException(404, "指定歌单不存在");
+        }
+        return result;
+    }
+
+    /**
+     * 查询用户创建的歌单列表
+     *
+     * @param userId 用户id
+     * @return 歌单列表
+     */
+    @Override
+    public List<Playlist> getUserCreatedPlaylist(Integer userId) {
+        return playlistMapper.selectList(new LambdaQueryWrapper<Playlist>().eq(Playlist::getUserId, userId));
+    }
+
+    /**
+     * 添加歌单收藏
+     *
+     * @param userId     用户id
+     * @param playlistId 歌单id
+     */
+    @Override
+    public void addPlaylistSubscribe(Integer userId, Integer playlistId) {
+        try {
+            playlistSubscribeMapper.insert(new PlaylistSubscribe(playlistId, userId, null, null, null));
+        } catch (DuplicateKeyException e) {
+            throw new ServiceException(400, "已添加收藏");
+        }
+    }
+
+    /**
+     * 取消歌单收藏
+     *
+     * @param userId     用户id
+     * @param playlistId 歌单id
+     */
+    @Override
+    public void removePlaylistSubscribe(Integer userId, Integer playlistId) {
+        playlistSubscribeMapper.delete(new LambdaQueryWrapper<PlaylistSubscribe>().eq(PlaylistSubscribe::getUserId, userId).eq(PlaylistSubscribe::getPlaylistId, playlistId));
+    }
+
+    /**
+     * 查询收藏的歌单列表
+     *
+     * @param userId 用户id
+     * @return 歌单列表
+     */
+    @Override
+    public List<Playlist> getPlaylistSubscribed(Integer userId) {
+        return playlistSubscribeMapper.selectList(new LambdaQueryWrapper<PlaylistSubscribe>().eq(PlaylistSubscribe::getUserId, userId)).stream().map(playlistSubscribe -> {
+            return playlistMapper.selectById(playlistSubscribe.getPlaylistId());
+        }).collect(Collectors.toList());
     }
 }
