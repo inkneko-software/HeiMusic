@@ -22,12 +22,12 @@ public class MusicProber {
                 "-show_streams",
                 file.getAbsolutePath()
         );
-        processBuilder.redirectErrorStream(true);
         log.debug("扫描文件：{}", file.getAbsolutePath());
         ObjectMapper objectMapper = JsonMapper.builder().configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true).build();;
         Process process = processBuilder.start();
-        StringBuilder stringBuilder = new StringBuilder();
-        Thread readingThead = new Thread(new Runnable() {
+        StringBuilder stdoutStringBuilder = new StringBuilder();
+        StringBuilder stderrStringBuilder = new StringBuilder();
+        Thread stdoutReadingThead = new Thread(new Runnable() {
             @Override
             public void run() {
                 InputStream inputStream = process.getInputStream();
@@ -35,7 +35,7 @@ public class MusicProber {
                 String tmp;
                 try{
                     while ((tmp = bufferedReader.readLine()) != null) {
-                        stringBuilder.append(tmp);
+                        stdoutStringBuilder.append(tmp);
                     }
                     inputStream.close();
                 }catch (IOException e){
@@ -43,14 +43,32 @@ public class MusicProber {
                 }
             }
         });
-        readingThead.start();
+        Thread stderrReadingThead = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                InputStream inputStream = process.getErrorStream();
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                String tmp;
+                try{
+                    while ((tmp = bufferedReader.readLine()) != null) {
+                        stderrStringBuilder.append(tmp);
+                    }
+                    inputStream.close();
+                }catch (IOException e){
+                    log.error("读取ffprobe stderr输出时发生异常", e);
+                }
+            }
+        });
+        stdoutReadingThead.start();
+        stderrReadingThead.start();
 
         int retCode = process.waitFor();
-        readingThead.join();
+        stdoutReadingThead.join();
+        stderrReadingThead.join();
 
         if (retCode == 0) {
-            return objectMapper.readValue(stringBuilder.toString(), ProbeResult.class);
+            return objectMapper.readValue(stdoutStringBuilder.toString(), ProbeResult.class);
         }
-        throw new IOException(String.format("ffprobe执行失败，命令：%s，stderr输出：%s", processBuilder, stringBuilder));
+        throw new IOException(String.format("ffprobe执行失败，命令：%s，stderr输出：%s", processBuilder, stderrStringBuilder));
     }
 }
