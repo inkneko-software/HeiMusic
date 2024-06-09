@@ -64,6 +64,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         return super.removeById(entity);
     }
 
+    @Override
+    @CacheEvict(cacheNames = "music", key = "#id")
+    public boolean removeById(Serializable id) {
+        return super.removeById(id);
+    }
+
     /**
      * 根据 ID 选择修改
      *
@@ -78,8 +84,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     /**
      * 保存音乐资源
      *
-     * @param musicResource
-     * @return
+     * @param musicResource 音乐资源
      */
     @Override
     public void saveMusicResource(MusicResource musicResource) {
