@@ -101,6 +101,10 @@ public class MusicScannerJob implements SchedulingConfigurer {
                 music.setDiscNumber(track.getDiscNumber());
                 music.setDiscTotal(track.getDiscTotal());
                 music.setArtist(track.getArtist());
+                //截断过长的艺术家字符串
+                if (track.getArtist() != null && track.getArtist().length() > 255){
+                    music.setArtist(track.getArtist().substring(0, 255));
+                }
                 music.setDiscStartTime(track.getDiskStartTime());
                 music.setDiscEndTime(track.getDiskEndTime());
                 musicService.save(music);
