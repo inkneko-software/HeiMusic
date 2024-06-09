@@ -43,7 +43,9 @@ public class MusicScanner {
 
         pendingDirectories.add(root);
         while (!pendingDirectories.isEmpty()) {
+            //从待扫描的目录列表中取出一个目录进行扫描
             File currentDir = pendingDirectories.poll();
+            //并获取其子目录，添加至待扫描目录列表中
             File[] subDirs = currentDir.listFiles(File::isDirectory);
             if (subDirs != null) {
                 pendingDirectories.addAll(Arrays.asList(subDirs));
@@ -77,11 +79,13 @@ public class MusicScanner {
                 //fuck CUE! 格式过于混乱，不知道是怎么生成的文件。
                 //遇到了一个情况，音乐文件是提前分好的，CUE只是用来做索引。然后出现了一个FILE下有两个TRACK。
                 //我只能认为生成CUE的软件多多少少有点毛病，尽量不依赖CUE
+                //如果音乐数量小于CUE文件数量（比如多个版本的CUE+单个音轨文件）或等于CUE文件数量（1个CUE文件对应1个音轨文件），则认为音乐文件是一整个CD音轨
                 if (!cueFiles.isEmpty() && musicFiles.size() <= cueFiles.size()) {
                     for (File cueFile : cueFiles) {
                         parsedAlbums.add(parseCueAlbum(musicFiles, imageFiles, cueFile));
                     }
                 } else {
+                    //否则认为音乐文件已经提前分割好，每个音乐文件都对应一个音乐
                     parsedAlbums.add(parseSplitedAlbum(musicFiles, imageFiles));
                 }
 

@@ -54,17 +54,19 @@ public class MusicScannerJob implements SchedulingConfigurer {
         if (heiMusicConfig.getStorageType().compareTo("local") != 0) {
             return;
         }
-        //根据音乐文件的路径，判断文件是否已扫描过
+        //判断音乐文件是否已扫描过。如果数据库中存在该音乐的路径，则认为该音乐已扫描过
         Predicate<File> isMusicScanedPredicate = file -> !musicService.getBaseMapper().selectList(new LambdaQueryWrapper<Music>().eq(Music::getFilePath, file.getAbsolutePath())).isEmpty();
 
+        //对于扫描到的专辑的处理逻辑
         Consumer<Album> albumConsumer = (com.inkneko.heimusic.util.music.model.Album album) -> {
+            //如果存在与数据库中，专辑标题与艺术家信息相同的专辑，则认为该专辑已扫描过
             com.inkneko.heimusic.model.entity.Album savedAlbum = albumService.getOne(
                     new LambdaQueryWrapper<com.inkneko.heimusic.model.entity.Album>()
                             .eq(com.inkneko.heimusic.model.entity.Album::getTitle, album.getTitle())
                             .eq(com.inkneko.heimusic.model.entity.Album::getAlbumArtist, album.getArtist())
             );
             if (savedAlbum == null) {
-                //如果是新专辑，则创建专辑，并添加音乐
+                //如果是新专辑，则创建专辑
                 savedAlbum = new com.inkneko.heimusic.model.entity.Album(album.getTitle());
                 savedAlbum.setAlbumArtist(album.getArtist());
                 savedAlbum.setFrontCoverFilePath(album.getCoverFilePath());
@@ -75,7 +77,7 @@ public class MusicScannerJob implements SchedulingConfigurer {
                 }
             }
 
-            //否则只做音乐的更新
+            //将新扫描到的音乐，存储至专辑音乐列表。会根据碟片序号和音轨序号进行排序。递增顺序
             List<Integer> savedMusicList = new ArrayList<>();
             album.getTrackList().sort((a, b) -> {
                 if (a.getDiscNumber() != null && b.getDiscNumber() != null && a.getDiscNumber().equals(b.getDiscNumber())) {
@@ -86,6 +88,7 @@ public class MusicScannerJob implements SchedulingConfigurer {
                 }
                 return 0;
             });
+            //存储音乐对象
             for (Track track : album.getTrackList()) {
                 Music music = new Music();
                 music.setTitle(track.getTitle());
@@ -106,10 +109,12 @@ public class MusicScannerJob implements SchedulingConfigurer {
                 List<String> artists = MusicScanner.parseArtists(music.getArtist());
                 musicService.addMusicArtistsWithName(music.getMusicId(), artists);
             }
+            //添加到专辑
             albumService.addAlbumMusic(savedAlbum.getAlbumId(), savedMusicList);
 
         };
 
+        //创建MusicScanner，并执行上面的逻辑
         MusicScanner musicScanner = new MusicScanner(heiMusicConfig);
         List<com.inkneko.heimusic.util.music.model.Album> albums = musicScanner.scanDirectory(
                 new File(heiMusicConfig.getLocalDataDirectory()),
