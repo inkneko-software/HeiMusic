@@ -22,7 +22,11 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(@NotNull CorsRegistry registry) {
                 registry.addMapping("/api/**")
 //                        .allowedHeaders("x-heimusic-auth-userid", "x-heimusic-auth-sessionid")
-                        .allowedOrigins("http://localhost:8888", "app://.");
+                        .allowedOrigins(
+                                "http://localhost:8888",
+                                "app://.",
+                                "http://localhost"
+                        );
     }
 
     @Override
