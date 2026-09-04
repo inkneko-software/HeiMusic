@@ -24,8 +24,11 @@ public class WebConfig implements WebMvcConfigurer {
 //                        .allowedHeaders("x-heimusic-auth-userid", "x-heimusic-auth-sessionid")
                         .allowedOrigins(
                                 "http://localhost:8888",
+                                "http://localhost:3000",
                                 "app://.",
-                                "http://localhost"
+                                "http://localhost",
+                                "https://localhost",
+                                "capacitor://localhost"
                         );
     }
 
