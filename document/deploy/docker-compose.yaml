@@ -29,7 +29,7 @@ services:
     image: redis:latest
     container_name: heimusic-redis
   minio:
-    image: quay.io/minio/minio:latest
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: heimusic-minio
     command: [ "server", "/data", "--console-address", ":9090" ]
     environment:
