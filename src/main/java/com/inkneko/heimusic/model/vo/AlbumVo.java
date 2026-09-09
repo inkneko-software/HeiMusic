@@ -26,7 +26,7 @@ public class AlbumVo {
         this.musicNum = musicNum;
 
 
-        if (album.getFrontCoverObjectKey() != null) {
+        if (album.getFrontCoverObjectKey() != null && !album.getFrontCoverObjectKey().isEmpty()) {
             //若不使用CDN，则url为 endpoint + bucket + objectKey
             if (minIOConfig.getCdn().isEmpty()) {
                 this.frontCoverUrl = String.format("%s/%s/%s", minIOConfig.getEndpoint(), album.getFrontCoverBucket(), album.getFrontCoverObjectKey());

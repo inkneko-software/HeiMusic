@@ -67,18 +67,18 @@ public class MusicVo {
 
         //若不使用CDN，则url为 endpoint + bucket + objectKey
         if (minIOConfig.getCdn().isEmpty()) {
-            if (album.getFrontCoverObjectKey() != null) {
+            if (album.getFrontCoverObjectKey() != null && !album.getFrontCoverObjectKey().isEmpty()) {
                 this.albumCoverUrl = String.format("%s/%s/%s", minIOConfig.getEndpoint(), album.getFrontCoverBucket(), album.getFrontCoverObjectKey());
             }
-            if (music.getObjectKey() != null) {
+            if (music.getObjectKey() != null && !music.getObjectKey().isEmpty()) {
                 this.resourceUrl = String.format("%s/%s/%s", minIOConfig.getEndpoint(), music.getBucket(), music.getObjectKey());
             }
         } else {
             //若使用CDN，则默认该CDN指向相应的桶
-            if (album.getFrontCoverObjectKey() != null) {
+            if (album.getFrontCoverObjectKey() != null && !album.getFrontCoverObjectKey().isEmpty()) {
                 this.albumCoverUrl = String.format("%s/%s", minIOConfig.getCdn(), album.getFrontCoverObjectKey());
             }
-            if (music.getObjectKey() != null) {
+            if (music.getObjectKey() != null && !music.getObjectKey().isEmpty()) {
                 this.resourceUrl = String.format("%s/%s", minIOConfig.getCdn(), music.getObjectKey());
             }
         }

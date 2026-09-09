@@ -18,7 +18,7 @@ public class MusicResourceVo {
         musicId = resource.getMusicId();
         codec = resource.getCodec();
         bitrate = resource.getCodec();
-        if (resource.getObjectKey() != null) {
+        if (resource.getObjectKey() != null && !resource.getObjectKey().isEmpty()) {
             //若不使用CDN，则url为 endpoint + bucket + objectKey
             if (minIOConfig.getCdn().isEmpty()) {
                 url = String.format("%s/%s/%s", minIOConfig.getEndpoint(), resource.getBucket(), resource.getObjectKey());
