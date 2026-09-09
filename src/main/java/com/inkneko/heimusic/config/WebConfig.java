@@ -21,6 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(@NotNull CorsRegistry registry) {
                 registry.addMapping("/api/**")
+                        .allowCredentials(true)
 //                        .allowedHeaders("x-heimusic-auth-userid", "x-heimusic-auth-sessionid")
                         .allowedOrigins(
                                 "http://localhost:8888",
