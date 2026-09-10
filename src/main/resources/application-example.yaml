@@ -8,9 +8,10 @@ spring:
       driver-class-name: com.mysql.cj.jdbc.Driver
       username: 修改此处_数据库账户
       password: 修改此处_数据库密码
-  redis:
-    host: redis
-    port: 6379
+  data:
+    redis:
+      host: redis
+      port: 6379
   rabbitmq:
     host: rabbitmq
     port: 5672

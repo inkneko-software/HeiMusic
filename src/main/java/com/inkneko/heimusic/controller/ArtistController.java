@@ -14,7 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.Max;
+import jakarta.validation.constraints.Max;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
