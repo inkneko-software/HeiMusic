@@ -8,7 +8,7 @@ import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.MusicService;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
+
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -76,7 +76,8 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param entity 实体对象
      */
     @Override
-    @CachePut(cacheNames = "music", key = "#entity.musicId")
+    //同 ArtistServiceImpl：@CachePut 会缓存 boolean 返回值污染缓存，改为驱逐
+    @CacheEvict(cacheNames = "music", key = "#entity.musicId")
     public boolean updateById(Music entity) {
         return super.updateById(entity);
     }

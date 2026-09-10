@@ -32,8 +32,8 @@ public class CueParser {
         //编码处理
         String charset = "UTF-8";
         CharsetDetector detector = new CharsetDetector();
-        InputStream is = new BufferedInputStream(new FileInputStream(filename));
-        detector.setText(is);
+        //一次性读入字节，避免流句柄泄漏（此前未关闭的 FileInputStream 在 Windows 上会一直锁住文件）
+        detector.setText(java.nio.file.Files.readAllBytes(java.nio.file.Path.of(filename)));
         Map<String, Integer> charsetAndConfidence = new HashMap<>();
         for (CharsetMatch match : detector.detectAll()) {
             charsetAndConfidence.put(match.getName(), match.getConfidence());

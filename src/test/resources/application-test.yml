@@ -1,0 +1,56 @@
+# 集成测试专用配置：
+# - 使用独立的 heimusic_test 数据库（由 document/database/heimusic.sql 导入），不污染开发数据
+# - 基础设施（MySQL/Redis/RabbitMQ）运行在 WSL2，经 localhost 端口转发访问
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    druid:
+      url: jdbc:mysql://localhost:3306/heimusic_test?serverTimezone=UTC
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: root
+      password: test
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    user: guest
+    password: guest
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: test@example.com
+    password: example_password
+    protocol: smtp
+  cache:
+    type: simple
+
+logging:
+  level:
+    root: warn
+
+heimusic:
+  domain: localhost
+  mail:
+    from: "HeiMusic Test <heimusic-test@example.com>"
+  storage-type: local
+  local:
+    data-directory: target/test-music-data
+    application-data-directory: target/test-app-data
+    url-prefix: http://localhost:8081
+  oss:
+    endpoint: "http://localhost:9000"
+    bucket: "heimusic-test"
+    accessKey: user
+    secretKey: password
+  is-encode-node: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

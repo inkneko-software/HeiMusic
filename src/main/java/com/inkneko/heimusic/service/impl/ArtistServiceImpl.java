@@ -7,7 +7,7 @@ import com.inkneko.heimusic.mapper.ArtistMapper;
 import com.inkneko.heimusic.model.entity.Artist;
 import com.inkneko.heimusic.service.ArtistService;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
+
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -57,7 +57,9 @@ public class ArtistServiceImpl extends ServiceImpl<ArtistMapper, Artist> impleme
      * @param entity 实体对象
      */
     @Override
-    @CachePut(cacheNames = "artist", key = "#entity.artistId")
+    //此前误用 @CachePut：它缓存的是本方法的 boolean 返回值而非实体，
+    //导致更新后 getById 从缓存读到 Boolean 抛 ClassCastException，改为驱逐缓存
+    @CacheEvict(cacheNames = "artist", key = "#entity.artistId")
     public boolean updateById(Artist entity) {
         return super.updateById(entity);
     }
