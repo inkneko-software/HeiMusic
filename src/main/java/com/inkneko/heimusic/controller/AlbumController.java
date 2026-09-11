@@ -106,7 +106,7 @@ public class AlbumController {
                 .stream()
                 .map(albumArtist -> new ArtistVo(artistService.getById(albumArtist.getArtistId())))
                 .collect(Collectors.toList());
-        return new Response<>(0, "ok", new AlbumVo(album, artistVos, albumService.getAlbumMusicNum(albumId), heiMusicConfig, minIOConfig));
+        return new Response<>(0, "ok", new AlbumVo(album, artistVos, albumService.getAlbumMusicNum(albumId), minIOConfig));
     }
 
     @GetMapping("/getMusicList")
@@ -132,7 +132,7 @@ public class AlbumController {
                             .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                             .collect(Collectors.toList());
                     boolean isFavorite = userId != null && musicService.isFavorite(userId, musicId);
-                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, heiMusicConfig, minIOConfig, isFavorite);
+                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig, isFavorite);
                 })
                 .sorted(Comparator.comparing(MusicVo::getDiscNumber).thenComparing(MusicVo::getTrackNumber))
                 .collect(Collectors.toList());
@@ -151,7 +151,7 @@ public class AlbumController {
                             .stream()
                             .map(musicArtist -> new ArtistVo(artistService.getById(musicArtist.getArtistId())))
                             .collect(Collectors.toList());
-                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), heiMusicConfig, minIOConfig);
+                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), minIOConfig);
                 })
                 .collect(Collectors.toList());
         return new Response<>(0, "ok", result);
@@ -169,7 +169,7 @@ public class AlbumController {
                             .stream()
                             .map(musicArtist -> new ArtistVo(artistService.getById(musicArtist.getArtistId())))
                             .collect(Collectors.toList());
-                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), heiMusicConfig, minIOConfig);
+                    return new AlbumVo(album, musicArtistVos, albumService.getAlbumMusicNum(album.getAlbumId()), minIOConfig);
                 })
                 .collect(Collectors.toList());
         return new Response<>(0, "ok", new AlbumListVo(result, albumService.count()));
@@ -266,7 +266,7 @@ public class AlbumController {
         return new Response<>(
                 0,
                 "ok",
-                new MusicVo(selectedMusic, album, artistVos, musicResourceVos, heiMusicConfig, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
+                new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
 
 
     }
@@ -327,7 +327,7 @@ public class AlbumController {
                     .stream()
                     .map(musicResource -> new MusicResourceVo(musicResource, minIOConfig))
                     .collect(Collectors.toList());
-            recommendMusicList.add(new MusicVo(selectedMusic, album, artistVos, musicResourceVos, heiMusicConfig, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
+            recommendMusicList.add(new MusicVo(selectedMusic, album, artistVos, musicResourceVos, minIOConfig, musicService.isFavorite(userId, selectedMusic.getMusicId())));
         }
         return new Response<>(0, "ok", recommendMusicList);
     }

@@ -1,6 +1,5 @@
 package com.inkneko.heimusic.model.vo;
 
-import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.model.entity.Album;
 import lombok.Data;
@@ -18,13 +17,12 @@ public class AlbumVo {
     Long musicNum;
     List<ArtistVo> artistList;
 
-    public AlbumVo(Album album, List<ArtistVo> artistList, Long musicNum, HeiMusicConfig heiMusicConfig, MinIOConfig minIOConfig) {
+    public AlbumVo(Album album, List<ArtistVo> artistList, Long musicNum, MinIOConfig minIOConfig) {
         this.albumId = album.getAlbumId();
         this.title = album.getTitle();
         this.translateTitle = album.getTranslateTitle();
         this.artistList = artistList;
         this.musicNum = musicNum;
-
 
         if (album.getFrontCoverObjectKey() != null && !album.getFrontCoverObjectKey().isEmpty()) {
             //若不使用CDN，则url为 endpoint + bucket + objectKey
@@ -35,7 +33,8 @@ public class AlbumVo {
                 this.frontCoverUrl = String.format("%s/%s", minIOConfig.getCdn(), album.getFrontCoverObjectKey());
             }
         }else if (!album.getFrontCoverFilePath().isEmpty()) {
-            this.frontCoverUrl = String.format("%s/api/v1/album/getFrontCoverFile/%d", heiMusicConfig.getLocalUrlPrefix(), album.getAlbumId());
+            //本地存储的文件走API下发，返回相对路径，由前端按自身API地址拼接
+            this.frontCoverUrl = String.format("/api/v1/album/getFrontCoverFile/%d", album.getAlbumId());
         }
     }
 }

@@ -46,7 +46,8 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 heimusic:
-  domain: localhost
+  # 登录 cookie 的 Domain：留空 = 不写 Domain 属性（host-only）；生产需跨子域共享时填主域名，如 example.com
+  domain: ""
   mail:
     from: "HeiMusic <heimusic@example.com>"
   oss:

@@ -41,7 +41,6 @@ heimusic:
   local:
     data-directory: target/test-music-data
     application-data-directory: target/test-app-data
-    url-prefix: http://localhost:8081
   oss:
     endpoint: "http://localhost:9000"
     bucket: "heimusic-test"

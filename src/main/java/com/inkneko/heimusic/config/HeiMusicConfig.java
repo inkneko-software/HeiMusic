@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Data
 public class HeiMusicConfig {
-    @Value("${heimusic.domain}")
+    @Value("${heimusic.domain:}")
     private String domain;
 
     @Value("${heimusic.mail.from}")
@@ -21,9 +21,6 @@ public class HeiMusicConfig {
 
     @Value("${heimusic.local.application-data-directory}")
     private String localApplicationDataDirectory;
-
-    @Value("${heimusic.local.url-prefix}")
-    private String localUrlPrefix;
 
 
 }

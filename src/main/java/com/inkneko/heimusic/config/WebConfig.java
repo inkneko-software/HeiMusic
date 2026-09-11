@@ -23,13 +23,19 @@ public class WebConfig implements WebMvcConfigurer {
                 registry.addMapping("/api/**")
                         .allowCredentials(true)
 //                        .allowedHeaders("x-heimusic-auth-userid", "x-heimusic-auth-sessionid")
-                        .allowedOrigins(
+                        // 前端 dev server 常通过局域网 IP 访问（如真机调试 http://192.168.x.x:8888），
+                        // 代理转发会保留浏览器原始 Origin，因此白名单需覆盖私网地址段
+                        .allowedOriginPatterns(
                                 "http://localhost:8888",
                                 "http://localhost:3000",
                                 "app://.",
                                 "http://localhost",
                                 "https://localhost",
-                                "capacitor://localhost"
+                                "capacitor://localhost",
+                                "http://127.0.0.1:8888",
+                                "http://192.168.*.*:8888",
+                                "http://10.*.*.*:8888",
+                                "http://172.16.*.*:8888"
                         );
     }
 

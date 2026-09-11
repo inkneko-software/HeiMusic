@@ -1,7 +1,6 @@
 package com.inkneko.heimusic.controller;
 
 import com.inkneko.heimusic.annotation.auth.UserAuth;
-import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.model.dto.AddPlaylistMusicDto;
 import com.inkneko.heimusic.model.dto.RemovePlaylistMusicDto;
@@ -30,15 +29,13 @@ public class PlaylistController {
     ArtistService artistService;
     UserService userService;
     MinIOConfig minIOConfig;
-    HeiMusicConfig heiMusicConfig;
 
-    public PlaylistController(AlbumService albumService, MusicService musicService, UserService userService, MinIOConfig minIOConfig, ArtistService artistService, HeiMusicConfig heiMusicConfig) {
+    public PlaylistController(AlbumService albumService, MusicService musicService, UserService userService, MinIOConfig minIOConfig, ArtistService artistService) {
         this.albumService = albumService;
         this.musicService = musicService;
         this.userService = userService;
         this.minIOConfig = minIOConfig;
         this.artistService = artistService;
-        this.heiMusicConfig = heiMusicConfig;
     }
 
     private List<ArtistVo> getMusicArtistVoList(Integer musicId) {
@@ -84,7 +81,7 @@ public class PlaylistController {
                     //获取音乐的资源信息
                     List<MusicResourceVo> musicResourceVos = getMusicResourceVoList(musicId);
                     boolean isFavorite = musicService.isFavorite(userId, musicId);
-                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, heiMusicConfig, minIOConfig, isFavorite);
+                    return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig, isFavorite);
                 })
                 .collect(Collectors.toList());
 
@@ -192,7 +189,7 @@ public class PlaylistController {
             //获取音乐的资源信息
             List<MusicResourceVo> musicResourceVos = getMusicResourceVoList(musicId);
             boolean isFavorite = musicService.isFavorite(userId, musicId);
-            return new MusicVo(music, album, musicArtistVos, musicResourceVos, heiMusicConfig, minIOConfig, isFavorite);
+            return new MusicVo(music, album, musicArtistVos, musicResourceVos, minIOConfig, isFavorite);
         }).toList();
 
         return new Response<>(0, "ok", musicVoList);

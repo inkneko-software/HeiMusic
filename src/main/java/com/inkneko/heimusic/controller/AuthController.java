@@ -11,6 +11,7 @@ import com.inkneko.heimusic.model.vo.Response;
 import com.inkneko.heimusic.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,19 +57,7 @@ public class AuthController {
         authService.register(userDetail, code);
 
         String sessionId = authService.login(userDetail.getUserId()).getValue();
-        Cookie cookieSessionId = new Cookie("sessionId", sessionId);
-        cookieSessionId.setDomain(heiMusicConfig.getDomain());
-        cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
-        cookieSessionId.setHttpOnly(true);
-        cookieSessionId.setPath("/");
-        Cookie cookieUserId = new Cookie("userId", String.valueOf(userDetail.getUserId()));
-        cookieUserId.setDomain(heiMusicConfig.getDomain());
-        cookieUserId.setMaxAge(60 * 60 * 24 * 180);
-        cookieUserId.setHttpOnly(true);
-        cookieUserId.setPath("/");
-
-        response.addCookie(cookieSessionId);
-        response.addCookie(cookieUserId);
+        writeAuthCookies(response, userDetail.getUserId(), sessionId);
         return new Response<>(0, "注册成功");
     }
 
@@ -97,20 +86,7 @@ public class AuthController {
     public Response resetPassword(@Parameter(description = "密码") @RequestParam String password, @Parameter(description = "邮箱验证码") @RequestParam String emailCode, HttpServletRequest request, HttpServletResponse response) {
         Integer userId = (Integer) request.getAttribute("userId");
         String newSessionId = authService.updatePasswordWithEmailCode(userId, emailCode, password);
-
-        Cookie cookieSessionId = new Cookie("sessionId", newSessionId);
-        cookieSessionId.setDomain(heiMusicConfig.getDomain());
-        cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
-        cookieSessionId.setHttpOnly(true);
-        cookieSessionId.setPath("/");
-        Cookie cookieUserId = new Cookie("userId", String.valueOf(userId));
-        cookieUserId.setDomain(heiMusicConfig.getDomain());
-        cookieUserId.setMaxAge(60 * 60 * 24 * 180);
-        cookieUserId.setHttpOnly(true);
-        cookieUserId.setPath("/");
-
-        response.addCookie(cookieSessionId);
-        response.addCookie(cookieUserId);
+        writeAuthCookies(response, userId, newSessionId);
         return new Response(0, "密码已更新");
     }
 
@@ -128,19 +104,7 @@ public class AuthController {
         }
 
 
-        Cookie cookieSessionId = new Cookie("sessionId", pair.getValue());
-        cookieSessionId.setDomain(heiMusicConfig.getDomain());
-        cookieSessionId.setMaxAge(60 * 60 * 24 * 180);
-        cookieSessionId.setHttpOnly(true);
-        cookieSessionId.setPath("/");
-        Cookie cookieUserId = new Cookie("userId", String.valueOf(pair.getKey()));
-        cookieUserId.setDomain(heiMusicConfig.getDomain());
-        cookieUserId.setMaxAge(60 * 60 * 24 * 180);
-        cookieUserId.setHttpOnly(true);
-        cookieUserId.setPath("/");
-
-        response.addCookie(cookieSessionId);
-        response.addCookie(cookieUserId);
+        writeAuthCookies(response, pair.getKey(), pair.getValue());
 
         return new Response<>(0, "登录成功");
     }
@@ -166,6 +130,26 @@ public class AuthController {
     public Response<?> createRootAccount(@RequestBody CreateRootAccountDto createRootAccountDto){
         authService.createRootAccount(createRootAccountDto.getEmail(), createRootAccountDto.getPassword());
         return new Response<>(0, "创建成功");
+    }
+
+    /**
+     * 登录态 cookie（sessionId、userId）统一在此写入。
+     * 未配置 heimusic.domain 时不写 Domain 属性（host-only cookie），cookie 归属浏览器
+     * 实际访问的主机，因此经前端开发代理（如 http://192.168.x.x:8888）访问时也能正常种下，
+     * 不会被浏览器以 Domain 不匹配为由拒绝；仅在配置了域名（生产需跨子域共享）时才写 Domain。
+     */
+    private void writeAuthCookies(HttpServletResponse response, Integer userId, String sessionId) {
+        for (Cookie cookie : new Cookie[]{
+                new Cookie("sessionId", sessionId),
+                new Cookie("userId", String.valueOf(userId))}) {
+            if (StringUtils.hasText(heiMusicConfig.getDomain())) {
+                cookie.setDomain(heiMusicConfig.getDomain());
+            }
+            cookie.setMaxAge(60 * 60 * 24 * 180);
+            cookie.setHttpOnly(true);
+            cookie.setPath("/");
+            response.addCookie(cookie);
+        }
     }
 
 }

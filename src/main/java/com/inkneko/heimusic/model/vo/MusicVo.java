@@ -1,6 +1,5 @@
 package com.inkneko.heimusic.model.vo;
 
-import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.model.entity.Album;
 import com.inkneko.heimusic.model.entity.Music;
@@ -32,7 +31,7 @@ public class MusicVo {
     Boolean isFavorite;
 
 
-    public MusicVo(Music music, Album album, List<ArtistVo> artistList, List<MusicResourceVo> resourceList, HeiMusicConfig heiMusicConfig, MinIOConfig minIOConfig, Boolean isFavorite) {
+    public MusicVo(Music music, Album album, List<ArtistVo> artistList, List<MusicResourceVo> resourceList, MinIOConfig minIOConfig, Boolean isFavorite) {
         this.musicId = music.getMusicId();
         this.title = music.getTitle();
         this.translateTitle = music.getTranslateTitle();
@@ -54,12 +53,13 @@ public class MusicVo {
 
 
         if (!album.getFrontCoverFilePath().isEmpty()) {
-            this.albumCoverUrl = String.format("%s/api/v1/album/getFrontCoverFile/%d", heiMusicConfig.getLocalUrlPrefix(), album.getAlbumId());
+            //本地存储的文件走API下发，返回相对路径，由前端按自身API地址拼接
+            this.albumCoverUrl = String.format("/api/v1/album/getFrontCoverFile/%d", album.getAlbumId());
         }
 
         if (music.getBucket() == null) {
             if (music.getFilePath() != null) {
-                this.resourceUrl = String.format("%s/api/v1/music/getMusicFile/%d", heiMusicConfig.getLocalUrlPrefix(), music.getMusicId());
+                this.resourceUrl = String.format("/api/v1/music/getMusicFile/%d", music.getMusicId());
             }
             return;
         }

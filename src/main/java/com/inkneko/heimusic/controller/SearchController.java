@@ -1,7 +1,6 @@
 package com.inkneko.heimusic.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.inkneko.heimusic.config.HeiMusicConfig;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.model.entity.*;
 import com.inkneko.heimusic.model.vo.ArtistVo;
@@ -27,14 +26,12 @@ public class SearchController {
     ArtistService artistService;
     AlbumService albumService;
     MusicService musicService;
-    HeiMusicConfig heiMusicConfig;
     MinIOConfig minIOConfig;
 
-    public SearchController(ArtistService artistService, AlbumService albumService, MusicService musicService, HeiMusicConfig heiMusicConfig, MinIOConfig minIOConfig) {
+    public SearchController(ArtistService artistService, AlbumService albumService, MusicService musicService, MinIOConfig minIOConfig) {
         this.artistService = artistService;
         this.albumService = albumService;
         this.musicService = musicService;
-        this.heiMusicConfig = heiMusicConfig;
         this.minIOConfig = minIOConfig;
     }
 
@@ -81,7 +78,7 @@ public class SearchController {
         for (MusicResource musicResource : musicResources){
             musicResourceVos.add(new MusicResourceVo(musicResource, minIOConfig));
         }
-        return new MusicVo(music, album, artistVos,musicResourceVos,heiMusicConfig, minIOConfig, userId != null && musicService.isFavorite(userId, music.getMusicId()));
+        return new MusicVo(music, album, artistVos,musicResourceVos, minIOConfig, userId != null && musicService.isFavorite(userId, music.getMusicId()));
 
     }
 }
