@@ -1,8 +1,11 @@
 package com.inkneko.heimusic.service;
 
 import com.inkneko.heimusic.exception.ServiceException;
+import com.inkneko.heimusic.mapper.UserAuthMapper;
 import com.inkneko.heimusic.mapper.UserDetailMapper;
+import com.inkneko.heimusic.model.entity.UserAuth;
 import com.inkneko.heimusic.model.entity.UserDetail;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,9 @@ class AuthServiceTests {
 
     @Autowired
     UserDetailMapper userDetailMapper;
+
+    @Autowired
+    UserAuthMapper userAuthMapper;
 
     private String email;
     private final List<Integer> usedUids = new java.util.ArrayList<>();
@@ -227,6 +233,48 @@ class AuthServiceTests {
         assertEquals(uid, authService.login(email, "NewPassw0rd").getKey());
         assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.PASSWORD_INCORRECT.getCode(),
                 () -> authService.login(email, "OldPassw0rd"));
+    }
+
+    @Test
+    void legacySha1PasswordIsUpgradedToBcryptOnLogin() {
+        Integer uid = registerUser();
+
+        //手动构造历史格式凭证（加盐 SHA1），模拟生产环境存量数据
+        String salt = UUID.randomUUID().toString().substring(0, 32);
+        UserAuth auth = userAuthMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserAuth>()
+                        .eq(UserAuth::getUserId, uid));
+        auth.setAuthSalt(salt);
+        auth.setAuthHash(DigestUtils.sha1Hex(String.format("9527-%s-%s", "LegacyPassw0rd", salt)));
+        userAuthMapper.updateById(auth);
+
+        //旧格式密码可正常登录，且登录后哈希透明升级为 bcrypt
+        track(authService.login(uid, "LegacyPassw0rd").getValue());
+        UserAuth upgraded = userAuthMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserAuth>()
+                        .eq(UserAuth::getUserId, uid));
+        assertTrue(upgraded.getAuthHash().startsWith("$2"), "登录后应重写为 bcrypt 哈希");
+        assertEquals("-", upgraded.getAuthSalt());
+
+        //升级后同一密码仍可登录，错误密码被拒绝
+        track(authService.login(uid, "LegacyPassw0rd").getValue());
+        assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.PASSWORD_INCORRECT.getCode(),
+                () -> authService.login(uid, "wrong-password"));
+    }
+
+    @Test
+    void newPasswordIsStoredAsBcrypt() {
+        Integer uid = registerUser();
+        track(authService.updatePassword(uid, "Passw0rd"));
+
+        UserAuth auth = userAuthMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserAuth>()
+                        .eq(UserAuth::getUserId, uid));
+        assertTrue(auth.getAuthHash().startsWith("$2"), "新设置密码应存储为 bcrypt 哈希");
+        assertEquals("-", auth.getAuthSalt());
+        //密文与明文不同，长度为 bcrypt 标准 60 字符
+        assertNotEquals("Passw0rd", auth.getAuthHash());
+        assertEquals(60, auth.getAuthHash().length());
     }
 
     /** 断言抛出指定错误码的 ServiceException */

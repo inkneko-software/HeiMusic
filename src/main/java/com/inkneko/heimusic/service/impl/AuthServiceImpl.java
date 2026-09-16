@@ -18,6 +18,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.redisson.api.RMapCache;
 import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserAuthMapper userAuthMapper;
     private final UserDetailMapper userDetailMapper;
     private final SecureRandom secureRandom;
+    private final BCryptPasswordEncoder passwordEncoder;
     private final AsyncMailSender asyncMailSender;
     private final UserRoleMapper userRoleMapper;
     private final HeiMusicConfig heiMusicConfig;
@@ -53,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
         this.userAuthMapper = userAuthMapper;
         this.userDetailMapper = userDetailMapper;
         secureRandom = new SecureRandom();
+        passwordEncoder = new BCryptPasswordEncoder();
         this.asyncMailSender = asyncMailSender;
         this.heiMusicConfig = heiMusicConfig;
         this.userRoleMapper = userRoleMapper;
@@ -175,14 +178,40 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 根据密码与盐生成其Hash值
+     * 历史算法：加盐 SHA1。仅用于校验存量数据，校验通过后应升级为 bcrypt，不再用于新写入
      *
      * @param password 密码
      * @param salt     盐
      * @return Hash值
      */
-    private String genAuthHash(String password, String salt) {
+    private String genLegacyAuthHash(String password, String salt) {
         return DigestUtils.sha1Hex(String.format("9527-%s-%s", password, salt));
+    }
+
+    /**
+     * 校验密码。兼容 bcrypt（$2 前缀）与历史加盐 SHA1 两种存储格式
+     *
+     * @param rawPassword 待校验的明文密码
+     * @param auth        用户的凭证记录
+     * @return 是否匹配
+     */
+    private boolean verifyPassword(String rawPassword, UserAuth auth) {
+        String storedHash = auth.getAuthHash();
+        if (storedHash.startsWith("$2")) {
+            return passwordEncoder.matches(rawPassword, storedHash);
+        }
+        return genLegacyAuthHash(rawPassword, auth.getAuthSalt()).equals(storedHash);
+    }
+
+    /**
+     * 若存储的还是旧格式（加盐 SHA1）哈希，趁密码验证成功之机重写为 bcrypt（透明升级）
+     */
+    private void upgradeLegacyAuthHashIfNeeded(UserAuth auth, String rawPassword) {
+        if (!auth.getAuthHash().startsWith("$2")) {
+            auth.setAuthHash(passwordEncoder.encode(rawPassword));
+            auth.setAuthSalt("-");
+            userAuthMapper.updateById(auth);
+        }
     }
 
     /**
@@ -204,7 +233,7 @@ public class AuthServiceImpl implements AuthService {
         if (auth == null){
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
         }
-        if (!genAuthHash(oldPassword, auth.getAuthSalt()).equals(auth.getAuthHash())){
+        if (!verifyPassword(oldPassword, auth)){
             throw new ServiceException(AuthServiceErrorCode.PASSWORD_INCORRECT);
         }
         return updatePassword(userId, newPassword);
@@ -270,8 +299,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String updatePassword(Integer userId, String newPassword) {
         UserAuth auth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, userId));
-        auth.setAuthSalt(UUID.randomUUID().toString().substring(0, 32));
-        auth.setAuthHash(genAuthHash(newPassword, auth.getAuthSalt()));
+        //bcrypt 自带随机盐（内嵌于哈希串），auth_salt 仅作为历史字段保留，不再参与计算
+        auth.setAuthSalt("-");
+        auth.setAuthHash(passwordEncoder.encode(newPassword));
         userAuthMapper.updateById(auth);
         String sessionId = genSessionId(auth.getUserId(), auth.getAuthHash());
         sessionIdMap.putIfAbsent(sessionId, auth.getUserId(), 180, TimeUnit.DAYS);
@@ -326,7 +356,9 @@ public class AuthServiceImpl implements AuthService {
         if (userAuth == null) {
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
         }
-        if (genAuthHash(password, userAuth.getAuthSalt()).equals(userAuth.getAuthHash())) {
+        if (verifyPassword(password, userAuth)) {
+            //存量旧格式（加盐 SHA1）哈希趁登录之机透明升级为 bcrypt
+            upgradeLegacyAuthHashIfNeeded(userAuth, password);
             return login(userAuth.getUserId());
         }else{
             throw new ServiceException(AuthServiceErrorCode.PASSWORD_INCORRECT);
