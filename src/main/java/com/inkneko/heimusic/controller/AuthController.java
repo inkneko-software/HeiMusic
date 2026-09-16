@@ -90,6 +90,29 @@ public class AuthController {
         return new Response(0, "密码已更新");
     }
 
+    @UserAuth
+    @PostMapping(value = "/updatePassword")
+    @Operation(summary = "修改密码", description = "在已登录状态下通过旧密码验证修改密码，不依赖邮件验证码。修改成功会以新会话覆盖登录态cookie")
+    public Response<?> updatePassword(@Parameter(description = "当前密码") @RequestParam String oldPassword,
+                                      @Parameter(description = "新密码") @RequestParam String newPassword,
+                                      HttpServletRequest request, HttpServletResponse response) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        String newSessionId = authService.updatePasswordWithOldPassword(userId, oldPassword, newPassword);
+        writeAuthCookies(response, userId, newSessionId);
+        return new Response<>(0, "密码已更新");
+    }
+
+    @UserAuth
+    @PostMapping(value = "/updateEmail")
+    @Operation(summary = "修改绑定邮箱", description = "邮箱为登录标识，修改前需验证当前密码。自动创建的root账户首次登录后应将占位邮箱换成真实邮箱")
+    public Response<?> updateEmail(@Parameter(description = "新邮箱") @RequestParam @Email(message = "邮箱格式不正确") String email,
+                                   @Parameter(description = "当前密码") @RequestParam String password,
+                                   HttpServletRequest request) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        authService.updateEmail(userId, email, password);
+        return new Response<>(0, "邮箱已更新");
+    }
+
     @PostMapping(value = "/login")
     @Operation(summary = "登录", description = "使用验证码或密码登录，登录成功会setCookie，包括userId与sessionId两个字段")
     public Response<?> login(@Valid @RequestBody LoginDto loginDTO, HttpServletResponse response) {

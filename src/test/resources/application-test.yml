@@ -35,6 +35,8 @@ logging:
 
 heimusic:
   domain: localhost
+  # 关闭启动时的 root 账户自动初始化，避免测试上下文启动即写入测试库
+  root-auto-init: false
   mail:
     from: "HeiMusic Test <heimusic-test@example.com>"
   storage-type: local

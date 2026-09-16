@@ -46,6 +46,7 @@ class AuthServiceTests {
     private String email;
     private final List<Integer> usedUids = new java.util.ArrayList<>();
     private final List<String> usedSessionIds = new java.util.ArrayList<>();
+    private final List<String> usedEmails = new java.util.ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -59,6 +60,11 @@ class AuthServiceTests {
         RMapCache<String, String> loginCodeMap = redissonClient.getMapCache("auth_email_login_code");
         registerCodeMap.remove(email);
         loginCodeMap.remove(email);
+        usedEmails.forEach(e -> {
+            registerCodeMap.remove(e);
+            loginCodeMap.remove(e);
+        });
+        usedEmails.clear();
 
         RMapCache<String, Integer> sessionMap = redissonClient.getMapCache("auth_session_uid");
         RMapCache<Integer, List<String>> uidSessionMap = redissonClient.getMapCache("auth_uid_sessionIds");
@@ -275,6 +281,41 @@ class AuthServiceTests {
         //密文与明文不同，长度为 bcrypt 标准 60 字符
         assertNotEquals("Passw0rd", auth.getAuthHash());
         assertEquals(60, auth.getAuthHash().length());
+    }
+
+    @Test
+    void updateEmailWithPasswordVerification() {
+        Integer uid = registerUser();
+        track(authService.updatePassword(uid, "Passw0rd"));
+
+        //密码错误时拒绝
+        assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.PASSWORD_INCORRECT.getCode(),
+                () -> authService.updateEmail(uid, "new-" + email, "wrong"));
+
+        //目标邮箱已被其他用户占用时拒绝
+        String otherEmail = UUID.randomUUID() + "@test.example.com";
+        usedEmails.add(otherEmail);
+        redissonClient.<String, String>getMapCache("email_register_code").put(otherEmail, "123456", 5, TimeUnit.MINUTES);
+        UserDetail other = new UserDetail();
+        other.setEmail(otherEmail);
+        authService.register(other, "123456");
+        usedUids.add(other.getUserId());
+        assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.EMAIL_REGISTERED.getCode(),
+                () -> authService.updateEmail(uid, otherEmail, "Passw0rd"));
+
+        //改成自己当前邮箱幂等成功
+        assertDoesNotThrow(() -> authService.updateEmail(uid, email, "Passw0rd"));
+
+        //密码验证通过后改邮箱成功，登录标识随之变更
+        String newEmail = "new-" + email;
+        authService.updateEmail(uid, newEmail, "Passw0rd");
+        assertEquals(uid, userDetailMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserDetail>()
+                        .eq(UserDetail::getEmail, newEmail)).getUserId());
+        assertNull(userDetailMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserDetail>()
+                        .eq(UserDetail::getEmail, email)));
+        assertEquals(uid, authService.login(newEmail, "Passw0rd").getKey());
     }
 
     /** 断言抛出指定错误码的 ServiceException */

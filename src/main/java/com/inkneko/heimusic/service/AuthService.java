@@ -173,4 +173,14 @@ public interface AuthService {
      */
     Integer findUserIdBySessionId(String sessionId);
 
+    /**
+     * 修改账户绑定邮箱（登录标识），需验证当前密码
+     *
+     * @param userId   用户id
+     * @param newEmail 新邮箱
+     * @param password 当前密码
+     * @throws ServiceException 密码不正确或新邮箱已被占用时抛出
+     */
+    void updateEmail(Integer userId, String newEmail, String password) throws ServiceException;
+
 }

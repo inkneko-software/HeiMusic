@@ -440,4 +440,27 @@ public class AuthServiceImpl implements AuthService {
     public Integer findUserIdBySessionId(String sessionId) {
         return sessionIdMap.get(sessionId);
     }
+
+    @Override
+    public void updateEmail(Integer userId, String newEmail, String password) throws ServiceException {
+        //邮箱是登录标识，变更前需验证当前密码
+        UserAuth auth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, userId));
+        if (auth == null) {
+            throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
+        }
+        if (!verifyPassword(password, auth)) {
+            throw new ServiceException(AuthServiceErrorCode.PASSWORD_INCORRECT);
+        }
+        UserDetail existing = userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, newEmail));
+        if (existing != null) {
+            //新邮箱即当前用户自己的邮箱时幂等成功
+            if (existing.getUserId().equals(userId)) {
+                return;
+            }
+            throw new ServiceException(AuthServiceErrorCode.EMAIL_REGISTERED);
+        }
+        UserDetail userDetail = userDetailMapper.selectById(userId);
+        userDetail.setEmail(newEmail);
+        userDetailMapper.updateById(userDetail);
+    }
 }
