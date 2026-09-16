@@ -107,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
         String code = String.format("%06d", secureRandom.nextInt(1000000));
         emailRegCode.put(targetEmail, code, 5, TimeUnit.MINUTES);
         asyncMailSender.send(
-                "HeiMusic <heimusic@inkneko.com>",
+                heiMusicConfig.getMailFrom(),
                 targetEmail,
                 "【HeiMusic】注册验证",
                 String.format("您的注册验证码为<span style='color: #3a62bf;'>%s</span>, 5分钟内有效", code),

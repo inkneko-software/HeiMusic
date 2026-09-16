@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS user_detail(
 )Engine=InnoDB Default Charset=UTF8MB4;
 CREATE TABLE IF NOT EXISTS user_auth(
     user_id INT PRIMARY KEY,
-    auth_hash CHAR(64),
-    auth_salt CHAR(32),
+    auth_hash VARCHAR(100) COMMENT 'bcrypt（60字符，内嵌盐）；历史数据为加盐SHA1（40字符）',
+    auth_salt CHAR(32) COMMENT '已废弃，恒为 -，仅为兼容保留',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )Engine=InnoDB default Charset=UTF8MB4;

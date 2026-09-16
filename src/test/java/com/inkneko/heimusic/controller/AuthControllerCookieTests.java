@@ -41,6 +41,23 @@ class AuthControllerCookieTests {
     }
 
     @Test
+    void loginWritesSecureCookiesWhenSecureEnabled() {
+        AuthService authService = mock(AuthService.class);
+        when(authService.login("a@b.c", "pw")).thenReturn(Map.entry(7, "session-id"));
+        HeiMusicConfig config = mock(HeiMusicConfig.class);
+        when(config.getDomain()).thenReturn("");
+        when(config.isSecureCookie()).thenReturn(true);
+        AuthController controller = new AuthController(authService, config);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        controller.login(new LoginDto("a@b.c", "pw", null), response);
+
+        for (Cookie cookie : response.getCookies()) {
+            assertTrue(cookie.getSecure(), "开启 heimusic.secure-cookie 时 cookie 应标记 Secure");
+        }
+    }
+
+    @Test
     void loginWritesDomainScopedCookiesWhenDomainConfigured() {
         AuthController controller = controllerWithDomain("music.example.com");
 

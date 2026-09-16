@@ -170,6 +170,8 @@ public class AuthController {
             }
             cookie.setMaxAge(60 * 60 * 24 * 180);
             cookie.setHttpOnly(true);
+            //仅 HTTPS 部署时开启，HTTP 环境下 Secure cookie 会被浏览器拒绝
+            cookie.setSecure(heiMusicConfig.isSecureCookie());
             cookie.setPath("/");
             response.addCookie(cookie);
         }

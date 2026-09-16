@@ -29,5 +29,11 @@ public class HeiMusicConfig {
     @Value("${heimusic.root-auto-init:true}")
     private boolean rootAutoInit;
 
+    /**
+     * 登录 cookie 是否标记 Secure（仅 HTTPS 部署时开启，HTTP 环境开启会导致浏览器拒绝种 cookie）
+     */
+    @Value("${heimusic.secure-cookie:false}")
+    private boolean secureCookie;
+
 
 }

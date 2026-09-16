@@ -48,6 +48,10 @@ mybatis-plus:
 heimusic:
   # 登录 cookie 的 Domain：留空 = 不写 Domain 属性（host-only）；生产需跨子域共享时填主域名，如 example.com
   domain: ""
+  # 登录 cookie 是否标记 Secure：仅在 HTTPS 部署时开启，HTTP 环境开启会导致浏览器拒绝种 cookie
+  secure-cookie: false
+  # 启动时 root 账户不存在则自动创建，初始密码输出到日志（仅一次）
+  root-auto-init: true
   mail:
     from: "HeiMusic <heimusic@example.com>"
   oss:
