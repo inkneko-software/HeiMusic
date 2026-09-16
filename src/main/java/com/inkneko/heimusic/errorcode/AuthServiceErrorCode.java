@@ -7,7 +7,8 @@ public enum AuthServiceErrorCode implements ErrorCode {
     PASSWORD_CODE_NOT_PROVIDED(1003, "请提供密码或认证码"),
     PASSWORD_INCORRECT(1004, "密码不正确"),
     EMAIL_REGISTERED(1005, "邮箱已注册"),
-    ROOT_ACCOUNT_EXISTS(1006, "管理账户已存在")
+    ROOT_ACCOUNT_EXISTS(1006, "管理账户已存在"),
+    LOGIN_OVER_LIMIT(1007, "尝试次数过多，请稍后再试")
     ;
 
     private final int code;

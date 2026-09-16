@@ -58,12 +58,15 @@ class AuthServiceTests {
     void cleanRedis() {
         RMapCache<String, String> registerCodeMap = redissonClient.getMapCache("email_register_code");
         RMapCache<String, String> loginCodeMap = redissonClient.getMapCache("auth_email_login_code");
-        registerCodeMap.remove(email);
-        loginCodeMap.remove(email);
-        usedEmails.forEach(e -> {
+        //统一清理验证码键与防爆破计数键（email 及测试中用到的其他邮箱）
+        List<String> emailsToClean = new java.util.ArrayList<>(usedEmails);
+        emailsToClean.add(email);
+        for (String e : emailsToClean) {
             registerCodeMap.remove(e);
             loginCodeMap.remove(e);
-        });
+            redissonClient.getAtomicLong("auth_email_code_fail_count:" + e).delete();
+            redissonClient.getAtomicLong("auth_login_fail_count:" + e).delete();
+        }
         usedEmails.clear();
 
         RMapCache<String, Integer> sessionMap = redissonClient.getMapCache("auth_session_uid");
@@ -316,6 +319,64 @@ class AuthServiceTests {
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserDetail>()
                         .eq(UserDetail::getEmail, email)));
         assertEquals(uid, authService.login(newEmail, "Passw0rd").getKey());
+    }
+
+    @Test
+    void emailCodeBruteForceInvalidatesCode() {
+        Integer uid = registerUser();
+
+        //错 4 次仍在预算内，正确验证码可通过
+        redissonClient.<String, String>getMapCache("auth_email_login_code").put(email, "654321", 5, TimeUnit.MINUTES);
+        for (int i = 0; i < 4; i++) {
+            assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.EMAIL_CODE_INCORRECT.getCode(),
+                    () -> authService.loginByEmailCode(email, "111111"));
+        }
+        Map.Entry<Integer, String> result = authService.loginByEmailCode(email, "654321");
+        assertEquals(uid, result.getKey());
+        track(result.getValue());
+
+        //第 5 次错误后验证码立即作废，正确的验证码也无法再使用
+        redissonClient.<String, String>getMapCache("auth_email_login_code").put(email, "654321", 5, TimeUnit.MINUTES);
+        for (int i = 0; i < 5; i++) {
+            assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.EMAIL_CODE_INCORRECT.getCode(),
+                    () -> authService.loginByEmailCode(email, "111111"));
+        }
+        assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.EMAIL_CODE_INCORRECT.getCode(),
+                () -> authService.loginByEmailCode(email, "654321"));
+    }
+
+    @Test
+    void registerCodeConsumedAfterSuccess() {
+        seedRegisterCode("123456");
+        UserDetail detail = new UserDetail();
+        detail.setEmail(email);
+        authService.register(detail, "123456");
+        usedUids.add(detail.getUserId());
+
+        //注册成功后验证码立即作废，不可重复使用
+        assertNull(redissonClient.<String, String>getMapCache("email_register_code").get(email));
+    }
+
+    @Test
+    void passwordLoginLocksAfterRepeatedFailures() {
+        Integer uid = registerUser();
+        track(authService.updatePassword(uid, "Passw0rd"));
+
+        //连续失败 9 次尚未锁定
+        for (int i = 0; i < 9; i++) {
+            assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.PASSWORD_INCORRECT.getCode(),
+                    () -> authService.login(email, "wrong-password"));
+        }
+        //正确密码登录成功，失败计数清零
+        track(authService.login(email, "Passw0rd").getValue());
+
+        //再连续失败 10 次后临时锁定，正确密码也返回锁定错误
+        for (int i = 0; i < 10; i++) {
+            assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.PASSWORD_INCORRECT.getCode(),
+                    () -> authService.login(email, "wrong-password"));
+        }
+        assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.LOGIN_OVER_LIMIT.getCode(),
+                () -> authService.login(email, "Passw0rd"));
     }
 
     /** 断言抛出指定错误码的 ServiceException */

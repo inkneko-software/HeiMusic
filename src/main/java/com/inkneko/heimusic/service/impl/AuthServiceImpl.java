@@ -15,6 +15,7 @@ import com.inkneko.heimusic.service.AuthService;
 import com.inkneko.heimusic.service.UserService;
 import com.inkneko.heimusic.util.mail.AsyncMailSender;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.redisson.api.RAtomicLong;
 import org.redisson.api.RMapCache;
 import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
@@ -24,11 +25,22 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+
+    /**
+     * 防爆破：6 位数字邮箱验证码最多允许 5 次错误尝试，达到上限立即作废
+     */
+    private static final int MAX_EMAIL_CODE_ATTEMPTS = 5;
+    /**
+     * 防爆破：密码登录连续失败 10 次后临时锁定
+     */
+    private static final int MAX_LOGIN_FAILURES = 10;
+    private static final Duration LOGIN_LOCK_DURATION = Duration.ofMinutes(15);
 
     private final RedissonClient redissonClient;
     private final UserAuthMapper userAuthMapper;
@@ -104,9 +116,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void register(UserDetail userDetail, String code) throws ServiceException {
         RMapCache<String, String> emailRegCode = redissonClient.getMapCache("email_register_code");
-        //验证码可能从未发送或已过期（get 返回 null），统一按验证码不正确处理，避免 NPE
-        String validCode = emailRegCode.get(userDetail.getEmail());
-        if (validCode == null || !validCode.equals(code)) {
+        if (!consumeEmailCode(emailRegCode, userDetail.getEmail(), code)) {
             throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
         }
         try {
@@ -215,6 +225,39 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
+     * 校验并消费邮箱验证码：匹配则立即删除（一次性使用）；
+     * 不匹配则累计失败次数，达到上限立即作废验证码，防止对 6 位数字验证码的在线爆破
+     *
+     * @param codeMap 验证码所在的 map
+     * @param email   邮箱（即验证码的键）
+     * @param code    待校验的验证码
+     * @return 是否校验通过
+     */
+    private boolean consumeEmailCode(RMapCache<String, String> codeMap, String email, String code) {
+        String validCode = codeMap.get(email);
+        if (validCode == null) {
+            return false;
+        }
+        RAtomicLong failCount = redissonClient.getAtomicLong("auth_email_code_fail_count:" + email);
+        if (validCode.equals(code)) {
+            //验证成功即作废验证码并重置失败预算
+            codeMap.remove(email);
+            failCount.delete();
+            return true;
+        }
+        long failures = failCount.incrementAndGet();
+        if (failures == 1) {
+            //失败计数与验证码同生命周期（5 分钟），到期自动清理
+            failCount.expire(Duration.ofMinutes(5));
+        }
+        if (failures >= MAX_EMAIL_CODE_ATTEMPTS) {
+            codeMap.remove(email);
+            failCount.delete();
+        }
+        return false;
+    }
+
+    /**
      * 生成六位随机认证码，范围为[000000, 999999]
      * @return 认证码
      */
@@ -245,11 +288,9 @@ public class AuthServiceImpl implements AuthService {
         if (userDetail == null){
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
         }
-        String code = emailPasswordResetCodeMap.get(userDetail.getEmail());
-        if (code == null || !code.equals(emailCode)){
+        if (!consumeEmailCode(emailPasswordResetCodeMap, userDetail.getEmail(), emailCode)) {
             throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
         }
-        emailPasswordResetCodeMap.remove(userDetail.getEmail(), code);
         return updatePassword(userId, newPassword);
     }
 
@@ -346,8 +387,26 @@ public class AuthServiceImpl implements AuthService {
         if (userDetail == null) {
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
         }
-
-        return login(userDetail.getUserId(), password);
+        //连续失败达到上限后临时锁定，防止对密码的在线爆破
+        RAtomicLong loginFailCount = redissonClient.getAtomicLong("auth_login_fail_count:" + email);
+        if (loginFailCount.get() >= MAX_LOGIN_FAILURES) {
+            throw new ServiceException(AuthServiceErrorCode.LOGIN_OVER_LIMIT);
+        }
+        try {
+            Map.Entry<Integer, String> result = login(userDetail.getUserId(), password);
+            //登录成功，重置失败计数
+            loginFailCount.delete();
+            return result;
+        } catch (ServiceException e) {
+            if (e.getCode() == AuthServiceErrorCode.PASSWORD_INCORRECT.getCode()) {
+                long failures = loginFailCount.incrementAndGet();
+                if (failures == 1) {
+                    //自首次失败起锁定计时，到期自动解锁
+                    loginFailCount.expire(LOGIN_LOCK_DURATION);
+                }
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -375,11 +434,9 @@ public class AuthServiceImpl implements AuthService {
             userDetail.setAvatarUrl("/public/images/default_avatar.jpg");
             register(userDetail, code);
         }else{
-            String vaildCode = emailLoginCodeMap.get(email);
-            if (vaildCode == null || !vaildCode.equals(code)) {
+            if (!consumeEmailCode(emailLoginCodeMap, email, code)) {
                 throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
             }
-            emailLoginCodeMap.remove(email);
             userDetail = userDetailMapper.selectOne(new LambdaQueryWrapper<UserDetail>().eq(UserDetail::getEmail, email));
         }
         return login(userDetail.getUserId());
