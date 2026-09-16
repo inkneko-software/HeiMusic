@@ -286,20 +286,26 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(Integer userId, String sessionId) {
-
-        if (sessionIdMap.get(sessionId).equals(userId)) {
+        //会话可能已过期或已被登出（get 返回 null），此时无需处理，避免 NPE
+        Integer sessionUid = sessionIdMap.get(sessionId);
+        if (sessionUid != null && sessionUid.equals(userId)) {
             sessionIdMap.remove(sessionId);
             List<String> sessionIds =  uidSessionIdsMap.get(userId);
-            sessionIds.remove(sessionId);
-            uidSessionIdsMap.put(userId, sessionIds);
+            if (sessionIds != null) {
+                sessionIds.remove(sessionId);
+                uidSessionIdsMap.put(userId, sessionIds);
+            }
         }
     }
 
     @Override
     public void logout(Integer uid){
         List<String> sessionIds =  uidSessionIdsMap.get(uid);
-        for(String sessionId: sessionIds){
-            sessionIdMap.remove(sessionId);
+        //用户可能没有任何会话记录（从未登录/已全部登出），此时无需清理，避免 NPE
+        if (sessionIds != null) {
+            for(String sessionId: sessionIds){
+                sessionIdMap.remove(sessionId);
+            }
         }
         uidSessionIdsMap.remove(uid);
     }

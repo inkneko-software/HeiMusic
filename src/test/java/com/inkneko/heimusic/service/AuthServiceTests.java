@@ -114,6 +114,28 @@ class AuthServiceTests {
     }
 
     @Test
+    void logoutWithoutExistingSessionDoesNotThrow() {
+        Integer uid = registerUser();
+
+        //会话不存在（重复登出、会话已过期）时不应抛 NPE
+        assertDoesNotThrow(() -> authService.logout(uid, "nonexistent-session"));
+        //uid 没有任何会话索引（从未登录/已全部登出）时不应抛 NPE
+        assertDoesNotThrow(() -> authService.logout(uid));
+
+        //正常登出路径不受影响：单会话登出
+        Map.Entry<Integer, String> loginResult = authService.login(uid);
+        track(loginResult.getValue());
+        authService.logout(uid, loginResult.getValue());
+        assertNull(authService.findUserIdBySessionId(loginResult.getValue()));
+
+        //全端登出
+        Map.Entry<Integer, String> secondLogin = authService.login(uid);
+        track(secondLogin.getValue());
+        authService.logout(uid);
+        assertNull(authService.findUserIdBySessionId(secondLogin.getValue()));
+    }
+
+    @Test
     void registerRejectsIncorrectCode() {
         seedRegisterCode("123456");
         UserDetail detail = new UserDetail();
