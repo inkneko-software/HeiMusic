@@ -101,7 +101,9 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void register(UserDetail userDetail, String code) throws ServiceException {
         RMapCache<String, String> emailRegCode = redissonClient.getMapCache("email_register_code");
-        if (!emailRegCode.get(userDetail.getEmail()).equals(code)) {
+        //验证码可能从未发送或已过期（get 返回 null），统一按验证码不正确处理，避免 NPE
+        String validCode = emailRegCode.get(userDetail.getEmail());
+        if (validCode == null || !validCode.equals(code)) {
             throw new ServiceException(AuthServiceErrorCode.EMAIL_CODE_INCORRECT);
         }
         try {

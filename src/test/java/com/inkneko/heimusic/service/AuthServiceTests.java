@@ -128,6 +128,17 @@ class AuthServiceTests {
     }
 
     @Test
+    void registerRejectsMissingCode() {
+        //从未发送验证码（或验证码已过期）时，应返回业务错误码而非 NPE
+        UserDetail detail = new UserDetail();
+        detail.setEmail(email);
+
+        assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.EMAIL_CODE_INCORRECT.getCode(),
+                () -> authService.register(detail, "123456"));
+        assertFalse(authService.isEmailRegistered(email));
+    }
+
+    @Test
     void registerEmailCodeRateLimit() {
         //首次发送：验证码写入 Redis，6 位数字
         authService.sendRegisterEmail(email);
