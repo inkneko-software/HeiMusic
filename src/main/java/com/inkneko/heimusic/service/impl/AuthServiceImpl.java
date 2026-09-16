@@ -51,8 +51,10 @@ public class AuthServiceImpl implements AuthService {
     private final UserRoleMapper userRoleMapper;
     private final HeiMusicConfig heiMusicConfig;
     //redis maps:
-    private final RMapCache<String, Integer> sessionIdMap;
-    private final RMapCache<Integer, List<String>> uidSessionIdsMap;
+    //会话 → "userId:epoch"，epoch 为签发会话时的用户会话版本号；与用户当前版本号不一致的会话视为已失效
+    private final RMapCache<String, String> sessionMap;
+    //用户当前会话版本号：改密/全端登出时自增，使该用户所有已签发会话即刻失效（踢下线）
+    private final RMapCache<Integer, Integer> uidEpochMap;
     private final RMapCache<String, String> emailLoginCodeMap;
     private final  RMapCache<String, String> emailPasswordResetCodeMap;
 
@@ -72,8 +74,9 @@ public class AuthServiceImpl implements AuthService {
         this.heiMusicConfig = heiMusicConfig;
         this.userRoleMapper = userRoleMapper;
 
-        uidSessionIdsMap  = redissonClient.getMapCache("auth_uid_sessionIds");
-        sessionIdMap =  redissonClient.getMapCache("auth_session_uid");;
+        //换用 v2 键名以变更 value 格式（原 auth_session_uid 存纯 userId），部署后存量会话一律失效，需重新登录
+        sessionMap = redissonClient.getMapCache("auth_session_uid_v2");
+        uidEpochMap = redissonClient.getMapCache("auth_uid_epoch");
         emailLoginCodeMap = redissonClient.getMapCache("auth_email_login_code");
         emailPasswordResetCodeMap = redissonClient.getMapCache("auth_email_password_reset_code");
     }
@@ -270,6 +273,31 @@ public class AuthServiceImpl implements AuthService {
         return DigestUtils.sha1Hex(sessionId);
     }
 
+    /**
+     * 获取用户当前会话版本号，未设置过时为 0
+     */
+    private int getSessionEpoch(Integer uid) {
+        Integer epoch = uidEpochMap.get(uid);
+        return epoch == null ? 0 : epoch;
+    }
+
+    /**
+     * 用户会话版本号 +1，使该用户所有已签发会话即刻失效（改密踢下线 / 全端登出），
+     * 返回新版本号供随后签发新会话使用
+     */
+    private int invalidateAllSessions(Integer uid) {
+        int newEpoch = getSessionEpoch(uid) + 1;
+        uidEpochMap.put(uid, newEpoch);
+        return newEpoch;
+    }
+
+    /**
+     * 记录会话，value 形如 "userId:epoch"，180 天有效期
+     */
+    private void putSession(String sessionId, Integer uid, int epoch) {
+        sessionMap.put(sessionId, uid + ":" + epoch, 180, TimeUnit.DAYS);
+    }
+
     @Override
     public String updatePasswordWithOldPassword(Integer userId, String oldPassword, String newPassword) throws ServiceException {
         UserAuth auth = userAuthMapper.selectOne(new LambdaQueryWrapper<UserAuth>().eq(UserAuth::getUserId, userId));
@@ -344,41 +372,26 @@ public class AuthServiceImpl implements AuthService {
         auth.setAuthSalt("-");
         auth.setAuthHash(passwordEncoder.encode(newPassword));
         userAuthMapper.updateById(auth);
+        //改密后旧会话（含其他设备）即刻失效，当前设备以新版本号签发新会话
+        int newEpoch = invalidateAllSessions(userId);
         String sessionId = genSessionId(auth.getUserId(), auth.getAuthHash());
-        sessionIdMap.putIfAbsent(sessionId, auth.getUserId(), 180, TimeUnit.DAYS);
-        List<String> sessionIds = uidSessionIdsMap.get(userId);
-        if (sessionIds== null){
-            sessionIds = new LinkedList<String>();
-        }
-        sessionIds.add(sessionId);
-        uidSessionIdsMap.put(userId, sessionIds);
+        putSession(sessionId, userId, newEpoch);
         return sessionId;
     }
 
     @Override
     public void logout(Integer userId, String sessionId) {
-        //会话可能已过期或已被登出（get 返回 null），此时无需处理，避免 NPE
-        Integer sessionUid = sessionIdMap.get(sessionId);
+        //会话可能已过期、已被登出或已因改密/全端登出失效，此时无需处理，避免 NPE
+        Integer sessionUid = findUserIdBySessionId(sessionId);
         if (sessionUid != null && sessionUid.equals(userId)) {
-            sessionIdMap.remove(sessionId);
-            List<String> sessionIds =  uidSessionIdsMap.get(userId);
-            if (sessionIds != null) {
-                sessionIds.remove(sessionId);
-                uidSessionIdsMap.put(userId, sessionIds);
-            }
+            sessionMap.remove(sessionId);
         }
     }
 
     @Override
     public void logout(Integer uid){
-        List<String> sessionIds =  uidSessionIdsMap.get(uid);
-        //用户可能没有任何会话记录（从未登录/已全部登出），此时无需清理，避免 NPE
-        if (sessionIds != null) {
-            for(String sessionId: sessionIds){
-                sessionIdMap.remove(sessionId);
-            }
-        }
-        uidSessionIdsMap.remove(uid);
+        //会话版本号 +1，该用户所有已签发会话即刻失效
+        invalidateAllSessions(uid);
     }
 
     @Override
@@ -471,16 +484,8 @@ public class AuthServiceImpl implements AuthService {
         if (userAuth == null) {
             throw new ServiceException(AuthServiceErrorCode.USER_NOT_EXISTS);
         }
-        String authHash = userAuth.getAuthHash();
         String sessionId = genSessionId(uid, userAuth.getAuthHash());
-
-        sessionIdMap.putIfAbsent(sessionId, uid, 180, TimeUnit.DAYS);
-        List<String> sessionIds = uidSessionIdsMap.get(uid);
-        if (sessionIds== null){
-            sessionIds = new LinkedList<String>();
-        }
-        sessionIds.add(sessionId);
-        uidSessionIdsMap.put(uid, sessionIds);
+        putSession(sessionId, uid, getSessionEpoch(uid));
         return new AbstractMap.SimpleEntry<>(userAuth.getUserId(), sessionId);
     }
 
@@ -495,7 +500,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Integer findUserIdBySessionId(String sessionId) {
-        return sessionIdMap.get(sessionId);
+        String session = sessionMap.get(sessionId);
+        if (session == null) {
+            return null;
+        }
+        int separator = session.lastIndexOf(':');
+        Integer uid = Integer.parseInt(session.substring(0, separator));
+        int epoch = Integer.parseInt(session.substring(separator + 1));
+        //会话版本号与用户当前版本号不一致（已改密/全端登出）时视为已失效
+        return epoch == getSessionEpoch(uid) ? uid : null;
     }
 
     @Override

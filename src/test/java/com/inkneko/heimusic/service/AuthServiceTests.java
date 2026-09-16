@@ -69,19 +69,18 @@ class AuthServiceTests {
         }
         usedEmails.clear();
 
-        RMapCache<String, Integer> sessionMap = redissonClient.getMapCache("auth_session_uid");
-        RMapCache<Integer, List<String>> uidSessionMap = redissonClient.getMapCache("auth_uid_sessionIds");
-        for (String sessionId : usedSessionIds) {
-            sessionMap.remove(sessionId);
-        }
-        //服务内部（如 createRootAccount -> updatePassword）创建的会话记录在 uid 索引里，一并清掉
-        for (Integer uid : usedUids) {
-            List<String> sessionIds = uidSessionMap.get(uid);
-            if (sessionIds != null) {
-                sessionIds.forEach(sessionMap::remove);
+        //会话键无反向索引，按 userId 前缀兜底清理本测试涉及的会话与版本号
+        RMapCache<String, String> sessionMap = redissonClient.getMapCache("auth_session_uid_v2");
+        List<String> sessionKeysToRemove = new java.util.ArrayList<>();
+        for (Map.Entry<String, String> entry : sessionMap.readAllEntrySet()) {
+            int separator = entry.getValue().lastIndexOf(':');
+            if (usedUids.contains(Integer.parseInt(entry.getValue().substring(0, separator)))) {
+                sessionKeysToRemove.add(entry.getKey());
             }
-            uidSessionMap.remove(uid);
         }
+        sessionKeysToRemove.forEach(sessionMap::remove);
+        RMapCache<Integer, Integer> uidEpochMap = redissonClient.getMapCache("auth_uid_epoch");
+        usedUids.forEach(uidEpochMap::remove);
         usedSessionIds.clear();
         usedUids.clear();
     }
@@ -377,6 +376,41 @@ class AuthServiceTests {
         }
         assertThrowsServiceException(com.inkneko.heimusic.errorcode.AuthServiceErrorCode.LOGIN_OVER_LIMIT.getCode(),
                 () -> authService.login(email, "Passw0rd"));
+    }
+
+    @Test
+    void updatePasswordInvalidatesOtherSessions() {
+        Integer uid = registerUser();
+        //模拟两个设备各自登录
+        String deviceA = track(authService.login(uid).getValue());
+        String deviceB = track(authService.login(uid).getValue());
+        assertEquals(uid, authService.findUserIdBySessionId(deviceA));
+        assertEquals(uid, authService.findUserIdBySessionId(deviceB));
+
+        //任一设备改密后，所有旧会话（含其他设备）即刻失效
+        track(authService.updatePassword(uid, "NewPassw0rd"));
+        assertNull(authService.findUserIdBySessionId(deviceA), "改密后旧会话应全部失效");
+        assertNull(authService.findUserIdBySessionId(deviceB), "改密后其他设备的会话应失效");
+
+        //新密码登录得到的新会话正常有效
+        String newSession = track(authService.login(uid, "NewPassw0rd").getValue());
+        assertEquals(uid, authService.findUserIdBySessionId(newSession));
+    }
+
+    @Test
+    void logoutAllDevicesInvalidatesSessions() {
+        Integer uid = registerUser();
+        String sessionA = track(authService.login(uid).getValue());
+        String sessionB = track(authService.login(uid).getValue());
+        assertEquals(uid, authService.findUserIdBySessionId(sessionA));
+
+        //全端登出（会话版本号 +1）后所有会话失效
+        authService.logout(uid);
+        assertNull(authService.findUserIdBySessionId(sessionA));
+        assertNull(authService.findUserIdBySessionId(sessionB));
+
+        //重新登录正常
+        assertEquals(uid, authService.findUserIdBySessionId(track(authService.login(uid).getValue())));
     }
 
     /** 断言抛出指定错误码的 ServiceException */
