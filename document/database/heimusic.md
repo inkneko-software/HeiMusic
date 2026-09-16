@@ -3,9 +3,9 @@ HeiMusic 音乐数据库
 
 数据库名称：`heimusic`
 
-生成sql文件并导入：
+生成sql文件并导入（提取命令按行首锚定匹配围栏，因此文档内展示的命令文本不会被自身误抓）：
 ```bash
-sed -n '/```sql/,/```/p' heimusic.md | sed '/```/d' > heimusic.sql
+sed -n '/^```sql/,/^```$/p' heimusic.md | sed '/^```/d' > heimusic.sql
 docker exec -i heimusic-mysql -uroot -ppassword < heimusic.sql
 ```
 
@@ -24,7 +24,7 @@ CREATE USER 'user'@'%' identified by 'password';
 CREATE TABLE IF NOT EXISTS heimusic_application_info(
     version VARCHAR(255) NOT NULL DEFAULT 'current',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )Engine=InnoDB Default Charset=UTF8MB4;
 ```
 
@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS user_role(
 ```sql
 CREATE TABLE IF NOT EXISTS user_auth(
     user_id INT PRIMARY KEY,
-    auth_hash CHAR(64),
-    auth_salt CHAR(32),
+    auth_hash VARCHAR(100) COMMENT 'bcrypt（60字符，内嵌盐）；历史数据为加盐SHA1（40字符）',
+    auth_salt CHAR(32) COMMENT '已废弃，恒为 -，仅为兼容保留',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )Engine=InnoDB default Charset=UTF8MB4;

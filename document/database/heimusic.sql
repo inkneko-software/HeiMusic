@@ -1,4 +1,3 @@
-docker exec -i heimusic-mysql -uroot -ppassword < heimusic.sql
 CREATE DATABASE IF NOT EXISTS heimusic;
 USE heimusic;
 CREATE USER 'user'@'%' identified by 'password';
