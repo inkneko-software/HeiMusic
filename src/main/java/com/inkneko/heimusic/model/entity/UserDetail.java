@@ -21,7 +21,8 @@ public class UserDetail {
     private Integer userId;
     private String username;
     private String email;
-    private String avatarUrl;
+    private String avatarBucket;
+    private String avatarObjectKey;
     private Date birth;
     private String gender;
     private String sign;

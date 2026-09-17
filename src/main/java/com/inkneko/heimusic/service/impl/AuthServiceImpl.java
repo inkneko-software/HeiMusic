@@ -444,7 +444,6 @@ public class AuthServiceImpl implements AuthService {
             //未注册用户，直接调用UserService发送注册验证码
             userDetail = new UserDetail();
             userDetail.setEmail(email);
-            userDetail.setAvatarUrl("/public/images/default_avatar.jpg");
             register(userDetail, code);
         }else{
             if (!consumeEmailCode(emailLoginCodeMap, email, code)) {

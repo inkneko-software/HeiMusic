@@ -158,7 +158,7 @@ public class PlaylistController {
             playlist.setSequenceNumber(null);
         }
         UserDetail userDetail = userService.findUser(playlist.getUserId());
-        PlaylistVo playlistVo = new PlaylistVo(playlist, new UserBasicVo(userDetail.getUserId(), userDetail.getUsername(), userDetail.getAvatarUrl()));
+        PlaylistVo playlistVo = new PlaylistVo(playlist, new UserBasicVo(userDetail, minIOConfig));
         return new Response<>(0, "ok", playlistVo);
     }
 
@@ -170,7 +170,7 @@ public class PlaylistController {
         List<Playlist> playlistList = musicService.getUserCreatedPlaylist(userId);
 
         UserDetail userDetail = userService.findUser(userId);
-        List<PlaylistVo> playlistVoList = playlistList.stream().map(playlist -> new PlaylistVo(playlist, new UserBasicVo(userDetail.getUserId(), userDetail.getUsername(), userDetail.getAvatarUrl()))).toList();
+        List<PlaylistVo> playlistVoList = playlistList.stream().map(playlist -> new PlaylistVo(playlist, new UserBasicVo(userDetail, minIOConfig))).toList();
         return new Response<>(0, "ok", playlistVoList);
     }
 
@@ -240,7 +240,7 @@ public class PlaylistController {
 
         List<PlaylistVo> playlistVoList = playlistList.stream().map(playlist -> {
             UserDetail userDetail = userService.findUser(playlist.getUserId());
-            return new PlaylistVo(playlist, new UserBasicVo(userDetail.getUserId(), userDetail.getUsername(), userDetail.getAvatarUrl()));
+            return new PlaylistVo(playlist, new UserBasicVo(userDetail, minIOConfig));
         }).toList();
         return new Response<>(0, "ok", playlistVoList);
     }

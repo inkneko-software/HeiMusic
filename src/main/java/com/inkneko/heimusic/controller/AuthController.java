@@ -53,7 +53,6 @@ public class AuthController {
     public Response<?> register(@RequestParam String email, @RequestParam String code, HttpServletResponse response) {
         UserDetail userDetail = new UserDetail();
         userDetail.setEmail(email);
-        userDetail.setAvatarUrl("/public/images/default_avatar.jpg");
         authService.register(userDetail, code);
 
         String sessionId = authService.login(userDetail.getUserId()).getValue();
