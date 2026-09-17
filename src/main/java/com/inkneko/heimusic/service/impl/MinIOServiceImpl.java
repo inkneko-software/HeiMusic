@@ -74,21 +74,29 @@ public class MinIOServiceImpl implements MinIOService {
         try {
             String filePrefix = String.format("%s_%s", bucket, new String(Base64.getEncoder().encode(objectPath.getBytes()))).toLowerCase();
             File file = File.createTempFile(filePrefix, ".tmp");
-            multipartFile.transferTo(file);
-            minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).contentType(multipartFile.getContentType()).build());
-            boolean ignored = file.delete();
+            try {
+                multipartFile.transferTo(file);
+                minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).contentType(multipartFile.getContentType()).build());
+            } finally {
+                boolean ignored = file.delete();
+            }
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | MinioException e) {
-            throw new RuntimeException(e);
+            log.error("上传对象失败: {}/{}", bucket, objectPath, e);
+            throw new ServiceException(MinIOServiceErrorCode.UPLOAD_FAILED);
         }
     }
 
     @Override
     public void upload(String bucket, String objectPath, File file, String mimeType) throws ServiceException {
         try {
-            minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).contentType(mimeType).build());
-            boolean ignored = file.delete();
+            try {
+                minioClient.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(objectPath).filename(file.getAbsolutePath()).contentType(mimeType).build());
+            } finally {
+                boolean ignored = file.delete();
+            }
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | MinioException e) {
-            throw new RuntimeException(e);
+            log.error("上传对象失败: {}/{}", bucket, objectPath, e);
+            throw new ServiceException(MinIOServiceErrorCode.UPLOAD_FAILED);
         }
     }
 

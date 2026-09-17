@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS user_detail(
     avatar_object_key VARCHAR(255) NOT NULL DEFAULT '' COMMENT '头像的对象标识，为空表示未设置头像（客户端使用默认头像）',
     birth DATETIME,
     gender CHAR(1),
-    sign VARCHAR(255),
+    sign VARCHAR(255) NOT NULL DEFAULT '' COMMENT '个性签名',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE(email)
