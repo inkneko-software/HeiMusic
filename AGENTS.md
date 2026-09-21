@@ -27,7 +27,7 @@ HeiMusic 是一个自托管音乐流媒体服务的**后端**（前端为独立�
 # 运行单个测试类
 ./mvnw test -Dtest=MusicScannerTests
 
-# 本地启动（dev profile，端口 8081）
+# 本地启动（dev profile，端口等见本地 application-dev.yml，该文件不入库）
 ./mvnw spring-boot:run
 ```
 
@@ -37,7 +37,7 @@ Windows 下使用 `mvnw.cmd`；本项目在 Windows + Git Bash 环境开发，�
 
 - **运行依赖**：MySQL、Redis、RabbitMQ 必须可用才能启动应用；编码节点还需要 `ffmpeg`/`ffprobe` 在 PATH 中。
 - **profile**：`dev`（本地开发，连 localhost，本地文件存储）、`test`（集成测试）、生产配置见 `application-example.yaml`。
-- **测试**（`src/test/java`，55 个用例，其中 1 个 `@Disabled`）：
+- **测试**（`src/test/java`，59 个用例，其中 1 个 `@Disabled`）：
   - test profile 使用独立的 `heimusic_test` 库（需先导入 `document/database/heimusic.sql`），DB 变更按事务回滚，Redis 键定向清理，不污染开发数据。
   - `CueParser` / `MusicScanner` 为纯单元测试（TempDir 生成样例文件）；`ffprobe` 缺失时优雅跳过。
   - `ProbeConsumerTests` 标注 `@Disabled`，是手动运维脚本。
