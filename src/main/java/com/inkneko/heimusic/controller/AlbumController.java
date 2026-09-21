@@ -15,6 +15,7 @@ import com.inkneko.heimusic.service.ArtistService;
 import com.inkneko.heimusic.service.LyricService;
 import com.inkneko.heimusic.service.MinIOService;
 import com.inkneko.heimusic.service.MusicService;
+import com.inkneko.heimusic.service.PlayHistoryService;
 import com.inkneko.heimusic.util.auth.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
@@ -45,17 +46,19 @@ public class AlbumController {
     MusicService musicService;
     ArtistService artistService;
     LyricService lyricService;
+    PlayHistoryService playHistoryService;
     MinIOService minIOService;
     MinIOConfig minIOConfig;
     HeiMusicConfig heiMusicConfig;
     MusicScannerJob musicScannerJob;
     File thumbnailsCacheFolder;
 
-    public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, LyricService lyricService, MinIOService minIOService, MinIOConfig minIOConfig, HeiMusicConfig heiMusicConfig, MusicScannerJob musicScannerJob) {
+    public AlbumController(AlbumService albumService, MusicService musicService, ArtistService artistService, LyricService lyricService, PlayHistoryService playHistoryService, MinIOService minIOService, MinIOConfig minIOConfig, HeiMusicConfig heiMusicConfig, MusicScannerJob musicScannerJob) {
         this.albumService = albumService;
         this.musicService = musicService;
         this.artistService = artistService;
         this.lyricService = lyricService;
+        this.playHistoryService = playHistoryService;
         this.minIOService = minIOService;
         this.minIOConfig = minIOConfig;
         this.heiMusicConfig = heiMusicConfig;
@@ -219,8 +222,9 @@ public class AlbumController {
             musicService.getMusicResources(musicId).forEach(musicResource -> {
                 musicService.removeMusicResource(musicResource.getMusicResourceId());
             });
-            //级联删除歌词，避免遗留孤儿数据
+            //级联删除歌词与播放历史，避免遗留孤儿数据
             lyricService.removeByMusicId(musicId);
+            playHistoryService.removeByMusicId(musicId);
             musicService.removeById(musicId);
         });
         albumService.removeAlbumMusic(albumId, albumMusics.stream().map(AlbumMusic::getMusicId).collect(Collectors.toList()));

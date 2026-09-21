@@ -10,6 +10,7 @@ package com.inkneko.heimusic.errorcode;
  * MusicArtistServiceErrorCode 3000
  * MinIOServiceErrorCode       4000
  * LyricServiceErrorCode       5000
+ * PlayHistoryServiceErrorCode 6000
  */
 public interface ErrorCode {
     /**

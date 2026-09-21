@@ -209,6 +209,20 @@ CREATE TABLE IF NOT EXISTS music_favorite(
 )Engine=InnoDB default charset=utf8mb4;
 ```
 
+### 用户播放历史
+
+```sql
+CREATE TABLE IF NOT EXISTS play_history(
+    user_id INT NOT NULL COMMENT '用户id',
+    music_id INT NOT NULL COMMENT '音乐id',
+    play_count INT NOT NULL DEFAULT 1 COMMENT '累计播放次数',
+    last_played_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近一次播放时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '首次播放时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY(user_id, music_id)
+)Engine=InnoDB default charset=utf8mb4;
+```
+
 ### 歌单
 
 ```sql
