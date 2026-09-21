@@ -21,9 +21,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,7 +71,7 @@ class UserServiceTests {
         detail.setEmail(UUID.randomUUID() + "@test.example.com");
         userDetailMapper.insert(detail);
 
-        Date birth = new Date(0);
+        LocalDate birth = LocalDate.of(1970, 1, 1);
         userService.updateUserInfo(detail.getUserId(), "测试用户", birth, "m", "测试签名");
         UserDetail updated = userService.findUser(detail.getUserId());
         assertEquals("测试用户", updated.getUsername());

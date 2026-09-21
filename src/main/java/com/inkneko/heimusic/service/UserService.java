@@ -4,7 +4,7 @@ import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.entity.UserDetail;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 public interface UserService {
 
@@ -38,7 +38,7 @@ public interface UserService {
      * @param sign     个性签名，可为null
      * @throws ServiceException 用户不存在
      */
-    void updateUserInfo(Integer userId, String username, Date birth, String gender, String sign) throws ServiceException;
+    void updateUserInfo(Integer userId, String username, LocalDate birth, String gender, String sign) throws ServiceException;
 
     /**
      * 更新用户头像

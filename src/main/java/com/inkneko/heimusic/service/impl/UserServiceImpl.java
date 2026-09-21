@@ -29,7 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +78,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void updateUserInfo(Integer userId, String username, Date birth, String gender, String sign) {
+    public void updateUserInfo(Integer userId, String username, LocalDate birth, String gender, String sign) {
         if (findUser(userId) == null) {
             throw new ServiceException(UserServiceErrorCode.USER_NOT_EXISTS);
         }

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS user_detail(
     email VARCHAR(255),
     avatar_bucket VARCHAR(255) NOT NULL DEFAULT '' COMMENT '头像所在的桶',
     avatar_object_key VARCHAR(255) NOT NULL DEFAULT '' COMMENT '头像的对象标识，为空表示未设置头像（客户端使用默认头像）',
-    birth DATETIME,
+    birth DATE,
     gender CHAR(1),
     sign VARCHAR(255) NOT NULL DEFAULT '' COMMENT '个性签名',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

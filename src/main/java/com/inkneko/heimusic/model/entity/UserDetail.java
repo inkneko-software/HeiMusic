@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.Date;
 
 
@@ -23,7 +24,7 @@ public class UserDetail {
     private String email;
     private String avatarBucket;
     private String avatarObjectKey;
-    private Date birth;
+    private LocalDate birth;
     private String gender;
     private String sign;
     private Date createdAt;

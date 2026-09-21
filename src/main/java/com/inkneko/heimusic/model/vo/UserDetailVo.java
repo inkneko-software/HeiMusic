@@ -4,6 +4,7 @@ import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.model.entity.UserDetail;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Data
@@ -12,7 +13,7 @@ public class UserDetailVo {
     private String username;
     private String email;
     private String avatarUrl;
-    private Date birth;
+    private LocalDate birth;
     private String gender;
     private String sign;
     private Date createdAt;

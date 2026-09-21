@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import java.util.Date;
+import java.time.LocalDate;
 
 @Data
 @AllArgsConstructor
@@ -23,8 +23,8 @@ public class UpdateUserInfoDto {
 
     @Schema(description = "生日（yyyy-MM-dd），传null清空")
     @Past(message = "生日不能晚于当前时间")
-    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
-    private Date birth;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate birth;
 
     @Schema(description = "性别（m/f），传null清空")
     @Pattern(regexp = "^[mf]$", message = "性别取值仅支持 m/f")
