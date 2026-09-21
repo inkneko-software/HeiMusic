@@ -9,6 +9,7 @@ package com.inkneko.heimusic.errorcode;
  * UserServiceErrorCode        2000
  * MusicArtistServiceErrorCode 3000
  * MinIOServiceErrorCode       4000
+ * LyricServiceErrorCode       5000
  */
 public interface ErrorCode {
     /**

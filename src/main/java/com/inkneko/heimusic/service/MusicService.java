@@ -135,6 +135,22 @@ public interface MusicService extends IService<Music> {
     Map<Music, List<MusicArtist>> getByContainsArtist(List<Integer> artistIds);
 
     /**
+     * 更新音乐的默认歌词
+     *
+     * @param musicId 音乐id
+     * @param lyricId 默认歌词id，null表示清除默认
+     */
+    void updateDefaultLyric(Integer musicId, Integer lyricId);
+
+    /**
+     * 更新音乐的纯音乐标记
+     *
+     * @param musicId        音乐id
+     * @param isInstrumental 是否纯音乐，null表示未知
+     */
+    void updateInstrumental(Integer musicId, Boolean isInstrumental);
+
+    /**
      * 创建歌单
      *
      * @param playlist 歌单信息

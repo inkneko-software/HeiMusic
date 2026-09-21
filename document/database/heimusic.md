@@ -146,6 +146,8 @@ CREATE TABLE IF NOT EXISTS music(
     file_hash VARCHAR(255) NOT NULL DEFAULT '' COMMENT '该文件的哈希值',
     disc_start_time VARCHAR(255) NOT NULL DEFAULT '' COMMENT '音轨中音乐的起始时间，以秒为单位',
     disc_end_time VARCHAR(255) NOT NULL DEFAULT '' COMMENT '音轨中音乐的结束时间，以秒为单位',
+    default_lyric_id INT DEFAULT NULL COMMENT '默认歌词id，指向lyric.lyric_id，应用层维护引用完整性（无外键），NULL表示未指定',
+    is_instrumental TINYINT(1) DEFAULT NULL COMMENT '是否纯音乐：NULL=未知，1=纯音乐，0=有人声',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP DEFAULT NULL
@@ -179,6 +181,21 @@ CREATE TABLE IF NOT EXISTS music_resource(
 )Engine=InnoDB default charset=utf8mb4;
 ```
 
+
+### 歌词信息
+
+```sql
+CREATE TABLE IF NOT EXISTS lyric(
+    lyric_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '歌词id',
+    music_id INT NOT NULL COMMENT '所属音乐id',
+    content MEDIUMTEXT NOT NULL COMMENT '歌词全文，格式由format字段解释',
+    locale VARCHAR(32) NOT NULL COMMENT '语言标签，BCP 47风格，入库统一小写如zh-cn、ja',
+    format VARCHAR(32) NOT NULL DEFAULT 'lrc' COMMENT '歌词格式标识：text/lrc/lrc_a2/qrc等，应用层解释，不设数据库枚举',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE(music_id, locale)
+)Engine=InnoDB default charset=utf8mb4;
+```
 
 ### 用户"我喜欢"的音乐
 

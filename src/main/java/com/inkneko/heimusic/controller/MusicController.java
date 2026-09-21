@@ -1,5 +1,6 @@
 package com.inkneko.heimusic.controller;
 
+import com.inkneko.heimusic.annotation.auth.UserAuth;
 import com.inkneko.heimusic.config.MinIOConfig;
 import com.inkneko.heimusic.config.RabbitMQConfig;
 import com.inkneko.heimusic.exception.ServiceException;
@@ -45,6 +46,18 @@ public class MusicController {
         this.minIOService = minIOService;
         this.minIOConfig = minIOConfig;
         this.amqpTemplate = amqpTemplate;
+    }
+
+    @Operation(
+            summary = "设定音乐的纯音乐标记",
+            description = "isInstrumental三态：true=纯音乐，false=有人声，不传=未知（清除标记）"
+    )
+    @PostMapping("/setInstrumental")
+    @UserAuth(requireRootPrivilege = true)
+    public Response<?> setInstrumental(@RequestParam Integer musicId,
+                                       @RequestParam(required = false) Boolean isInstrumental) {
+        musicService.updateInstrumental(musicId, isInstrumental);
+        return new Response<>(0, "ok");
     }
 
     @Operation(summary = "新建音乐")

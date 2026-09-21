@@ -1,6 +1,7 @@
 package com.inkneko.heimusic.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.mapper.*;
@@ -322,6 +323,38 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             result.put(music, musicArtists);
         }
         return result;
+    }
+
+    /**
+     * 更新音乐的默认歌词
+     * <p>
+     * 用LambdaUpdateWrapper显式set，以支持将default_lyric_id置回NULL（updateById会跳过null字段）
+     *
+     * @param musicId 音乐id
+     * @param lyricId 默认歌词id，null表示清除默认
+     */
+    @Override
+    @CacheEvict(cacheNames = "music", key = "#musicId")
+    public void updateDefaultLyric(Integer musicId, Integer lyricId) {
+        update(new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getDefaultLyricId, lyricId));
+    }
+
+    /**
+     * 更新音乐的纯音乐标记
+     * <p>
+     * 同updateDefaultLyric：用LambdaUpdateWrapper显式set，支持三态（null=未知）
+     *
+     * @param musicId        音乐id
+     * @param isInstrumental 是否纯音乐，null表示未知
+     */
+    @Override
+    @CacheEvict(cacheNames = "music", key = "#musicId")
+    public void updateInstrumental(Integer musicId, Boolean isInstrumental) {
+        update(new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getIsInstrumental, isInstrumental));
     }
 
     /**

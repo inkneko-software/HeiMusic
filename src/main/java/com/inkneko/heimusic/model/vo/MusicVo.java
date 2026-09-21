@@ -29,6 +29,8 @@ public class MusicVo {
     List<ArtistVo> artistList;
     List<MusicResourceVo> resourceList;
     Boolean isFavorite;
+    Integer defaultLyricId;
+    Boolean isInstrumental;
 
 
     public MusicVo(Music music, Album album, List<ArtistVo> artistList, List<MusicResourceVo> resourceList, MinIOConfig minIOConfig, Boolean isFavorite) {
@@ -50,6 +52,8 @@ public class MusicVo {
         this.albumId = album.getAlbumId();
         this.albumTitle = album.getTitle();
         this.isFavorite = isFavorite;
+        this.defaultLyricId = music.getDefaultLyricId();
+        this.isInstrumental = music.getIsInstrumental();
 
 
         if (!album.getFrontCoverFilePath().isEmpty()) {
