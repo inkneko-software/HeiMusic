@@ -37,7 +37,7 @@ Windows 下使用 `mvnw.cmd`；本项目在 Windows + Git Bash 环境开发，�
 
 - **运行依赖**：MySQL、Redis、RabbitMQ 必须可用才能启动应用；编码节点还需要 `ffmpeg`/`ffprobe` 在 PATH 中。
 - **profile**：`dev`（本地开发，连 localhost，本地文件存储）、`test`（集成测试）、生产配置见 `application-example.yaml`。
-- **测试**（`src/test/java`，66 个用例，其中 1 个 `@Disabled`）：
+- **测试**（`src/test/java`，71 个用例，其中 1 个 `@Disabled`）：
   - test profile 使用独立的 `heimusic_test` 库（需先导入 `document/database/heimusic.sql`），DB 变更按事务回滚，Redis 键定向清理，不污染开发数据。
   - `CueParser` / `MusicScanner` 为纯单元测试（TempDir 生成样例文件）；`ffprobe` 缺失时优雅跳过。
   - `ProbeConsumerTests` 标注 `@Disabled`，是手动运维脚本。
@@ -88,3 +88,4 @@ src/main/java/com/inkneko/heimusic/
 - `application-dev.yml` 含开发环境真实配置，勿将其中的凭据复制到其他文件或提交新的密钥。
 - 测试需要的 WSL2 基础设施未启动时，集成测试会失败（连接超时），这不是代码问题。
 - 数据库表结构变更只需修改基准文档 `document/database/heimusic.md`，然后用文档头部的命令重新生成 `heimusic.sql` 并复制到 `document/deploy/mysql-initdb.d/`；两处 SQL 均为生成物，勿手改。
+- 生成物 `heimusic.sql` 只适用于全新环境（initdb 或新库首导）。对**存量库**做增量同步时，直接导入全量文件会被文件头部的 `CREATE USER`/`CREATE DATABASE` 卡住（mysql 批处理遇错即停），应抽取对应表的 `CREATE TABLE` 段落单独执行；涉及已有表加列则需手写 `ALTER TABLE`。
