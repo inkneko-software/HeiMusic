@@ -96,6 +96,8 @@ HeiMusic 歌词功能设计
 
 文档只给机制不给数值：超限返回 **429 + `Retry-After` 头（秒）**，客户端必须遵守，无视可能临时封禁。官方节流建议：**串行请求**（上一请求完成再发下一个），批量场景每请求间隔 **200~500ms**。
 
+实测补充（2026-09-23）：LRCLIB 过载时返回 **503** + `{"name":"ServerOverloaded","message":"The server is busy, please retry in a moment"}`，文档未记载。语义与 429 同为"稍后重试"的瞬时态，客户端统一按繁忙处理：转 `LrclibRateLimitException`（`Retry-After` 缺失时默认 5 秒），消费端退避一次、手动路径返回业务码 429。
+
 ### 6.4 请求标识
 
 必须设置 `User-Agent`，格式 `应用名 版本 (主页或邮箱)`，如 `HeiMusic v1.0 (https://github.com/leaf-lxh/heimusic)`；无法设置 UA 时用 `X-User-Agent` 或 `Lrclib-Client` 头替代。
@@ -171,7 +173,7 @@ HeiMusic 歌词功能设计
   - created / instrumental → ack + log.info
   - not_found → ack + log.info（LRCLIB 后台补录后可重投）
   - 5005 已有歌词 → ack + log.info（不覆盖人工数据）
-  - 429 → 读 `Retry-After`，`sleep(min(retryAfter, 60s))` 后重试一次；再 429 则 ack 丢弃，待下轮批量投放
+  - 429 / 503（繁忙）→ 读 `Retry-After`，`sleep(min(retryAfter, 60s))` 后重试一次；再繁忙则 ack 丢弃，待下轮批量投放
   - 其余异常 → log.error + ack 丢弃（与 ProbeConsumer 丢弃语义一致），靠投放脚本重投
 - **批量触发两条路径**：
   - HTTP：`POST /api/v1/lyric/scanMissingLyric`（管理权限，无参数）——查询"无歌词且非纯音乐"的音乐逐条投递，返回投放数；**60 秒节流窗口**（Redis `SETNX + TTL` 原子实现，键 `heimusic:lyric:scan_throttle`），窗口内重复调用抛 `LYRIC_SCAN_THROTTLED(5006)`（HTTP 200 + 业务码，前端 request 封装友好）。幂等性两层：入队前排除已有歌词的音乐 + 消费端"无歌词才拉取"校验兜底
