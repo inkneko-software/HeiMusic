@@ -67,7 +67,7 @@ HeiMusic 歌词功能设计
 
 删除类操作的 musicId 需查库获得，且 removeByMusicId 需逐条清理 lyric 缓存，注解无法表达，故在 `LyricServiceImpl.evictLyricCaches` 手动驱逐（CacheManager），其余走注解。
 
-**驱逐时机与提交后兜底**：注解式 `@CacheEvict` 在方法返回时（事务提交前）执行。批量拉取场景实测踩中：外层 `fetchFromLrclib` 事务（含 REQUIRES_NEW 日志写入）提交前的窗口内，用户并发调 `getList` 会把旧列表回填 `lyricList` 缓存，提交后无人再驱逐，脏缓存长期驻留（数据库有歌词、接口返回空数组）。修复：`addLyric` 与拉取的 instrumental 联动在写库后经 `TransactionSynchronization.afterCommit` 二次驱逐（`evictAfterCommit`，无活动事务时直接驱逐），注解驱逐保留（职责成对可见，与本兜底幂等）。其余写路径（updateLyric/removeLyric/音乐侧注解驱逐）窗口极小、维持注解即好。
+**驱逐时机、内部调用与提交后驱逐**：两个叠加问题（实测踩中：库里有歌词、getList 返回空数组且不自愈）：① 同类内部调用不走 Spring 代理——拉取编排与 `addLyric` 曾同在 `LyricServiceImpl`，`doFetchFromLrclib → this.addLyric` 使 `@CacheEvict` 在拉取路径**从未执行**，扫描前缓存的空列表永久驻留（事故根因，确定性复现）；② 注解驱逐经代理路径生效时也在事务提交前执行，窗口内并发读可回填旧值（真实存在的竞态）。修复：编排拆分为 `LyricFetchServiceImpl`（跨 bean 调 `addLyric` 走代理，注解恢复生效），且 `addLyric` 与 instrumental 联动写库后经 `TransactionAfterCommit.run`（service/impl 包内工具，注册 `afterCommit`，无活动事务时直接执行）提交后驱逐——不依赖代理、无提交前窗口，是两条路径的权威驱逐；注解驱逐保留（幂等）。其余写路径（updateLyric/removeLyric/音乐侧注解驱逐）窗口极小、维持注解即好。
 
 ## 6. LRCLIB 数据源事实（2026-09-21 实测核实）
 
@@ -150,7 +150,7 @@ HeiMusic 歌词功能设计
 
 ### 8.2 Service 流程
 
-单方法 `@Transactional`，锁只覆盖写段：
+编排位于 `LyricFetchServiceImpl`（`LyricService` 只负责 lyric 表存取与缓存维护；写入经跨 bean 调用走代理，`addLyric` 上的缓存/事务注解正常生效，避免同类内部调用旁路代理的坑，见第 5 节）。单方法 `@Transactional`，锁只覆盖写段：
 
 1. `musicService.getById` 校验存在（5001）
 2. 组装签名参数：title、artist（music.artist 原样）、album 名（album + album_music 关联，缺失则不携带）、duration 解析整数秒（解析成功且在 1~3600 才携带，见 6.1/6.5）
@@ -159,7 +159,7 @@ HeiMusic 歌词功能设计
 5. instrumental 联动：**仅当 `music.is_instrumental` 为 NULL 时**写入 LRCLIB 的值（true→1、false→0）；已有人工标注不覆盖。LRCLIB `instrumental=true` → outcome=instrumental，不建歌词记录
 6. 内容取舍：有 `syncedLyrics` → `format=lrc`，否则 `plainLyrics` → `format=text`（见 6.5，不拆两条）
 7. locale：显式传参 > 逐行投票 > `und`（见 7.4）
-8. 复用 `addLyric`（继承归一化与缓存驱逐；`DuplicateKeyException` → 5002 作为并发漏网兜底）→ outcome=created
+8. 经代理复用 `lyricService.addLyric`（继承归一化与缓存驱逐；`DuplicateKeyException` → 5002 作为并发漏网兜底）→ outcome=created
 
 并发正确性说明：InnoDB 的 FOR UPDATE 在语句执行时才取锁，置于 HTTP 调用之后，使持锁时长仅覆盖校验 + 插入（毫秒级）；"锁行 → 查歌词 → 插入"同事务串行化，杜绝"校验后、插入前"手工添加被覆盖。事务全程占用一个连接（外部调用期间为秒级超时），配合 MQ 串行消费可接受。
 
@@ -182,6 +182,7 @@ HeiMusic 歌词功能设计
 ### 8.4 新增组件与依赖
 
 - pom：`org.apache.tika:tika-langdetect-optimaize:2.9.0`（见 7.1）
+- `service/LyricFetchService(+Impl)`：拉取编排（fetchFromLrclib / scanMissingLyric），数据存取经 LyricService——编排与存取分离（内部调用旁路代理的坑见第 5 节）
 - `util/lrclib/LrclibClient`：Spring 自带 `RestClient`（项目首个 HTTP 客户端，不引新依赖），连接/读取超时配置化；`User-Agent` 按 6.4 设置；响应映射 `LrclibTrack`（`@JsonProperty` + `@JsonAnySetter` 容错，ProbeConsumer 解析 ffprobe JSON 的先例）
 - `util/lyric/LyricLanguageDetector`：Optimaize 封装 + 逐行投票（见 7.4）；实例复用 + `synchronized`（消费串行 + 手动单曲，低并发足够）
 - 配置：`heimusic.lrclib.base-url`（默认 `https://lrclib.net`）、`heimusic.lrclib.user-agent`（默认 `HeiMusic (https://github.com/leaf-lxh/heimusic)`）、`heimusic.is-lyric-fetch-node`；application-example.yaml 同步补齐
