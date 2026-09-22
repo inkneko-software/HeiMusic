@@ -37,11 +37,13 @@ Windows 下使用 `mvnw.cmd`；本项目在 Windows + Git Bash 环境开发，�
 
 - **运行依赖**：MySQL、Redis、RabbitMQ 必须可用才能启动应用；编码节点还需要 `ffmpeg`/`ffprobe` 在 PATH 中。
 - **profile**：`dev`（本地开发，连 localhost，本地文件存储）、`test`（集成测试）、生产配置见 `application-example.yaml`。
-- **测试**（`src/test/java`，71 个用例，其中 1 个 `@Disabled`）：
+- **测试**（`src/test/java`，97 个用例，其中 2 个 `@Disabled`）：
   - test profile 使用独立的 `heimusic_test` 库（需先导入 `document/database/heimusic.sql`），DB 变更按事务回滚，Redis 键定向清理，不污染开发数据。
-  - `CueParser` / `MusicScanner` 为纯单元测试（TempDir 生成样例文件）；`ffprobe` 缺失时优雅跳过。
-  - `ProbeConsumerTests` 标注 `@Disabled`，是手动运维脚本。
+  - `CueParser` / `MusicScanner` 为纯单元测试（TempDir 生成样例文件）；`ffprobe` 缺失时优雅跳过。`LyricLanguageDetectorTests` / `LrclibClientTests` 亦为纯单元测试（后者经 `MockRestServiceServer` 模拟 HTTP）。
+  - `ProbeConsumerTests` / `LyricFetchProducerTests` 标注 `@Disabled`，是手动运维脚本。
   - 部分测试（MinIO 回环测试等）依赖 localhost:9000 的 MinIO。
+  - mock 外部 bean 时不要用 `@MockitoBean`（会 fork 新 Spring 上下文，多上下文并存时 Netty 建循环连接易超时）；用 `ReflectionTestUtils` 替换共享单例字段并在 `@AfterEach` 恢复（见 `LyricFetchServiceTests`）。
+  - `REQUIRES_NEW` 的写入（如歌词任务日志）不受测试事务回滚保护：测试事务快照看不到它、事务内清理会被回滚，断言与清理须用独立 auto-commit 连接（见 `LyricFetchServiceTests` / `LyricFetchLogServiceTests`）。
 
 提测前请运行 `./mvnw test` 并确保全部通过。
 
@@ -89,3 +91,4 @@ src/main/java/com/inkneko/heimusic/
 - 测试需要的 WSL2 基础设施未启动时，集成测试会失败（连接超时），这不是代码问题。
 - 数据库表结构变更只需修改基准文档 `document/database/heimusic.md`，然后用文档头部的命令重新生成 `heimusic.sql` 并复制到 `document/deploy/mysql-initdb.d/`；两处 SQL 均为生成物，勿手改。
 - 生成物 `heimusic.sql` 只适用于全新环境（initdb 或新库首导）。对**存量库**做增量同步时，直接导入全量文件会被文件头部的 `CREATE USER`/`CREATE DATABASE` 卡住（mysql 批处理遇错即停），应抽取对应表的 `CREATE TABLE` 段落单独执行；涉及已有表加列则需手写 `ALTER TABLE`。
+- MQ 消息模型类统一放 `rabbitmq/model` 包：Jackson 转换器仅信任该包（spring-amqp 3.2.x 的信任匹配是**包名全等**，无前缀/通配），放别处的应用类会在消费端反序列化时被拒、消息被 `ConditionalRejectingErrorHandler` 直接丢弃（见 `RabbitMQConfigTests` 回归）。
