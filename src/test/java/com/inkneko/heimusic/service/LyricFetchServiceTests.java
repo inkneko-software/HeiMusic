@@ -6,7 +6,7 @@ import com.inkneko.heimusic.model.entity.Lyric;
 import com.inkneko.heimusic.model.entity.LyricFetchLog;
 import com.inkneko.heimusic.model.entity.Music;
 import com.inkneko.heimusic.model.vo.LyricFetchVo;
-import com.inkneko.heimusic.service.impl.LyricServiceImpl;
+import com.inkneko.heimusic.service.impl.LyricFetchServiceImpl;
 import com.inkneko.heimusic.util.lrclib.LrclibClient;
 import com.inkneko.heimusic.util.lrclib.LrclibTrack;
 import org.junit.jupiter.api.AfterEach;
@@ -38,11 +38,14 @@ import static org.mockito.Mockito.when;
  * "仅服务无歌词音乐"约束、纯音乐联动仅 NULL 时写入、locale 自动判定与显式覆盖、任务日志写入。
  * <p>
  * 不用 @MockitoBean（会 fork 新的 Spring 上下文，多上下文并存时 Netty 建循环连接易超时），
- * 而是直接替换共享 LyricServiceImpl 单例内的 LrclibClient 字段，测试后恢复
+ * 而是直接替换共享 LyricFetchServiceImpl 单例内的 LrclibClient 字段，测试后恢复
  */
 @SpringBootTest
 @Transactional
 class LyricFetchServiceTests {
+
+    @Autowired
+    LyricFetchService lyricFetchService;
 
     @Autowired
     LyricService lyricService;
@@ -67,7 +70,7 @@ class LyricFetchServiceTests {
 
     @BeforeEach
     void mockLrclibClient() {
-        LyricServiceImpl impl = (LyricServiceImpl) lyricService;
+        LyricFetchServiceImpl impl = (LyricFetchServiceImpl) lyricFetchService;
         originalLrclibClient = (LrclibClient) ReflectionTestUtils.getField(impl, "lrclibClient");
         lrclibClient = mock(LrclibClient.class);
         ReflectionTestUtils.setField(impl, "lrclibClient", lrclibClient);
@@ -75,7 +78,7 @@ class LyricFetchServiceTests {
 
     @AfterEach
     void clearCachesAndRestore() {
-        ReflectionTestUtils.setField((LyricServiceImpl) lyricService, "lrclibClient", originalLrclibClient);
+        ReflectionTestUtils.setField((LyricFetchServiceImpl) lyricFetchService, "lrclibClient", originalLrclibClient);
         for (String cacheName : List.of("lyric", "lyricList", "music")) {
             Cache cache = cacheManager.getCache(cacheName);
             if (cache != null) {
@@ -143,7 +146,7 @@ class LyricFetchServiceTests {
         when(lrclibClient.getBySignature(any(), any(), any(), any()))
                 .thenReturn(track(false, null, chineseLrc));
 
-        LyricFetchVo result = lyricService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
+        LyricFetchVo result = lyricFetchService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
 
         //outcome=created，歌词入库为 lrc 格式、locale 自动判定为 zh-cn
         assertEquals(LyricFetchLog.OUTCOME_CREATED, result.getOutcome());
@@ -164,7 +167,7 @@ class LyricFetchServiceTests {
         when(lrclibClient.getBySignature(any(), any(), any(), any()))
                 .thenReturn(track(false, "I feel your breath upon my neck, a soft caress as cold as death", null));
 
-        LyricFetchVo result = lyricService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MQ);
+        LyricFetchVo result = lyricFetchService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MQ);
 
         //无 synced 时回落纯文本 text 格式
         assertEquals(LyricFetchLog.OUTCOME_CREATED, result.getOutcome());
@@ -178,7 +181,7 @@ class LyricFetchServiceTests {
         Music music = createMusic("拉取测试-未命中-" + UUID.randomUUID());
         when(lrclibClient.getBySignature(any(), any(), any(), any())).thenReturn(null);
 
-        LyricFetchVo result = lyricService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
+        LyricFetchVo result = lyricFetchService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
 
         //not_found 为正常结局：无歌词记录、is_instrumental 保持未知，但任务日志要留下痕迹
         assertEquals(LyricFetchLog.OUTCOME_NOT_FOUND, result.getOutcome());
@@ -193,7 +196,7 @@ class LyricFetchServiceTests {
         when(lrclibClient.getBySignature(any(), any(), any(), any()))
                 .thenReturn(track(true, null, null));
 
-        LyricFetchVo result = lyricService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
+        LyricFetchVo result = lyricFetchService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
 
         //LRCLIB 标记纯音乐：outcome=instrumental，is_instrumental 由未知更新为 true，不产生歌词记录
         assertEquals(LyricFetchLog.OUTCOME_INSTRUMENTAL, result.getOutcome());
@@ -209,7 +212,7 @@ class LyricFetchServiceTests {
         when(lrclibClient.getBySignature(any(), any(), any(), any()))
                 .thenReturn(track(true, null, null));
 
-        LyricFetchVo result = lyricService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
+        LyricFetchVo result = lyricFetchService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL);
 
         //人工标注无条件优先：已有标注（false）时不采信 LRCLIB 的 true
         assertEquals(LyricFetchLog.OUTCOME_INSTRUMENTAL, result.getOutcome());
@@ -225,7 +228,7 @@ class LyricFetchServiceTests {
 
         //拉取只服务无歌词的音乐，人工数据无条件优先
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> lyricService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL));
+                () -> lyricFetchService.fetchFromLrclib(music.getMusicId(), null, LyricFetchLog.SOURCE_MANUAL));
         assertEquals(LyricServiceErrorCode.LYRIC_FETCH_ALREADY_HAS_LYRIC.getCode(), exception.getCode());
         //跳过结局也要在任务日志留痕
         assertEquals(1, countLogs(music.getMusicId(), LyricFetchLog.OUTCOME_SKIPPED));
@@ -238,7 +241,7 @@ class LyricFetchServiceTests {
         when(lrclibClient.getBySignature(any(), any(), any(), any()))
                 .thenReturn(track(false, "kimi no namae wo yobu yoru ni kakenukeru", null));
 
-        LyricFetchVo result = lyricService.fetchFromLrclib(music.getMusicId(), "ZH_CN", LyricFetchLog.SOURCE_MANUAL);
+        LyricFetchVo result = lyricFetchService.fetchFromLrclib(music.getMusicId(), "ZH_CN", LyricFetchLog.SOURCE_MANUAL);
 
         //显式 locale 归一化后入库
         assertEquals(LyricFetchLog.OUTCOME_CREATED, result.getOutcome());
@@ -249,18 +252,18 @@ class LyricFetchServiceTests {
     @Test
     void fetchMusicNotExists() {
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> lyricService.fetchFromLrclib(-1, null, LyricFetchLog.SOURCE_MANUAL));
+                () -> lyricFetchService.fetchFromLrclib(-1, null, LyricFetchLog.SOURCE_MANUAL));
         assertEquals(LyricServiceErrorCode.LYRIC_MUSIC_NOT_FOUND.getCode(), exception.getCode());
     }
 
     @Test
     void scanMissingLyricThrottledWithinWindow() {
         //首次调用通过节流窗口；测试库提交数据为空（各测试类事务回滚），投放数为0，不产生真实队列消息
-        int submitted = lyricService.scanMissingLyric();
+        int submitted = lyricFetchService.scanMissingLyric();
         assertEquals(0, submitted);
         //60 秒节流窗口内的重复调用被拒绝
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> lyricService.scanMissingLyric());
+                () -> lyricFetchService.scanMissingLyric());
         assertEquals(LyricServiceErrorCode.LYRIC_SCAN_THROTTLED.getCode(), exception.getCode());
     }
 }

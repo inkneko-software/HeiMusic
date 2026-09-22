@@ -7,7 +7,7 @@ import com.inkneko.heimusic.model.entity.LyricFetchLog;
 import com.inkneko.heimusic.model.vo.LyricFetchVo;
 import com.inkneko.heimusic.rabbitmq.model.LyricFetchRequest;
 import com.inkneko.heimusic.service.LyricFetchLogService;
-import com.inkneko.heimusic.service.LyricService;
+import com.inkneko.heimusic.service.LyricFetchService;
 import com.inkneko.heimusic.util.lrclib.LrclibRateLimitException;
 import com.rabbitmq.client.Channel;
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ public class LyricFetchConsumer {
     private static final long RATE_LIMIT_MAX_WAIT_SECONDS = 60L;
 
     @Autowired
-    LyricService lyricService;
+    LyricFetchService lyricFetchService;
     @Autowired
     LyricFetchLogService lyricFetchLogService;
 
@@ -96,12 +96,12 @@ public class LyricFetchConsumer {
      */
     private LyricFetchVo fetchWithRateLimitRetry(Integer musicId) throws InterruptedException {
         try {
-            return lyricService.fetchFromLrclib(musicId, null, LyricFetchLog.SOURCE_MQ);
+            return lyricFetchService.fetchFromLrclib(musicId, null, LyricFetchLog.SOURCE_MQ);
         } catch (LrclibRateLimitException e) {
             long waitSeconds = Math.min(e.getRetryAfterSeconds(), RATE_LIMIT_MAX_WAIT_SECONDS);
             logger.warn("LRCLIB限流，{}秒后重试一次", waitSeconds);
             Thread.sleep(waitSeconds * 1000L);
-            return lyricService.fetchFromLrclib(musicId, null, LyricFetchLog.SOURCE_MQ);
+            return lyricFetchService.fetchFromLrclib(musicId, null, LyricFetchLog.SOURCE_MQ);
         }
     }
 }

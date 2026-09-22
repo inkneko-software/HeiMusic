@@ -14,6 +14,7 @@ import com.inkneko.heimusic.model.vo.LyricFetchVo;
 import com.inkneko.heimusic.model.vo.LyricVo;
 import com.inkneko.heimusic.model.vo.Response;
 import com.inkneko.heimusic.service.LyricFetchLogService;
+import com.inkneko.heimusic.service.LyricFetchService;
 import com.inkneko.heimusic.service.LyricService;
 import com.inkneko.heimusic.service.MusicService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,12 +29,14 @@ import java.util.stream.Collectors;
 public class LyricController {
 
     LyricService lyricService;
+    LyricFetchService lyricFetchService;
     MusicService musicService;
     LyricFetchLogService lyricFetchLogService;
 
-    public LyricController(LyricService lyricService, MusicService musicService,
-                           LyricFetchLogService lyricFetchLogService) {
+    public LyricController(LyricService lyricService, LyricFetchService lyricFetchService,
+                           MusicService musicService, LyricFetchLogService lyricFetchLogService) {
         this.lyricService = lyricService;
+        this.lyricFetchService = lyricFetchService;
         this.musicService = musicService;
         this.lyricFetchLogService = lyricFetchLogService;
     }
@@ -111,7 +114,7 @@ public class LyricController {
     @UserAuth(requireRootPrivilege = true)
     public Response<LyricFetchVo> fetchFromLrclib(@RequestParam Integer musicId,
                                                   @RequestParam(required = false) String locale) {
-        return new Response<>(0, "ok", lyricService.fetchFromLrclib(musicId, locale, LyricFetchLog.SOURCE_MANUAL));
+        return new Response<>(0, "ok", lyricFetchService.fetchFromLrclib(musicId, locale, LyricFetchLog.SOURCE_MANUAL));
     }
 
     @Operation(summary = "一键扫描缺失歌词",
@@ -120,7 +123,7 @@ public class LyricController {
     @PostMapping("/scanMissingLyric")
     @UserAuth(requireRootPrivilege = true)
     public Response<Integer> scanMissingLyric() {
-        return new Response<>(0, "ok", lyricService.scanMissingLyric());
+        return new Response<>(0, "ok", lyricFetchService.scanMissingLyric());
     }
 
     @Operation(summary = "歌词覆盖率统计",

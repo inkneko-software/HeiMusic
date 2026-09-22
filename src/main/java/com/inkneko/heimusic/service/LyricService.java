@@ -3,10 +3,12 @@ package com.inkneko.heimusic.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.inkneko.heimusic.model.entity.Lyric;
 import com.inkneko.heimusic.model.vo.LyricCoverageVo;
-import com.inkneko.heimusic.model.vo.LyricFetchVo;
 
 import java.util.List;
 
+/**
+ * lyric 表数据存取与缓存维护。LRCLIB 拉取编排见 LyricFetchService
+ */
 public interface LyricService extends IService<Lyric> {
 
     /**
@@ -68,32 +70,6 @@ public interface LyricService extends IService<Lyric> {
      * @param lyricId 默认歌词id，必须属于该音乐；null表示取消默认
      */
     void setDefaultLyric(Integer musicId, Integer lyricId);
-
-    /**
-     * 从 LRCLIB 拉取歌词。核心原则：拉取只服务无歌词的音乐，人工数据无条件优先，不提供覆盖
-     * <p>
-     * LRCLIB 标记纯音乐时联动 music.is_instrumental（仅当前为未知时采信）；
-     * LRCLIB 暂无该曲目时 outcome 为 not_found（非错误，其后台会补录，可重试）；
-     * 该音乐已有歌词时抛 LYRIC_FETCH_ALREADY_HAS_LYRIC。
-     * 每次拉取尝试（含跳过与失败）均写入 lyric_fetch_log 任务日志
-     *
-     * @param musicId 音乐id
-     * @param locale  显式语言标签（归一化后入库），null 时按歌词文本逐行投票自动判定，无法判定存 und
-     * @param source  来源标识：LyricFetchLog.SOURCE_MANUAL / SOURCE_MQ
-     * @return 拉取结果，outcome=created 时 lyric 为新创建的歌词
-     */
-    LyricFetchVo fetchFromLrclib(Integer musicId, String locale, String source);
-
-    /**
-     * 一键扫描：查询全部"无歌词且非纯音乐"的音乐，向 lyric-queue 批量投放拉取任务
-     * <p>
-     * 幂等性：已创建歌词的音乐不会重复入队（拉取永不覆盖人工数据），
-     * 重复扫描的副作用仅为消费端 5005 跳过；
-     * 60 秒节流窗口内的重复调用抛 LYRIC_SCAN_THROTTLED，防止 MQ 洪峰
-     *
-     * @return 本次投放的音乐数
-     */
-    int scanMissingLyric();
 
     /**
      * 歌词覆盖率统计：音乐总数与有歌词的音乐数（同音乐多语言仅计一次），
