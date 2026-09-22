@@ -35,15 +35,15 @@ public class GlobalExceptionHanler {
     }
 
     /**
-     * LRCLIB 限流异常的处理（手动拉取歌词时可能触发），提示调用方稍后重试
-     * @param e 限流异常
+     * LRCLIB 繁忙异常的处理（限流 429 / 过载 503，手动拉取歌词时可能触发），提示调用方稍后重试
+     * @param e 繁忙异常
      * @return 业务输出
      */
     @ExceptionHandler(LrclibRateLimitException.class)
     @ResponseBody
     public Response<?> lrclibRateLimitExceptionHandler(LrclibRateLimitException e){
-        logger.warn("LRCLIB请求被限流，Retry-After：{}秒", e.getRetryAfterSeconds());
-        return new Response<>(429, "LRCLIB 请求过于频繁，请稍后重试");
+        logger.warn("LRCLIB服务繁忙（限流或过载），建议等待：{}秒", e.getRetryAfterSeconds());
+        return new Response<>(429, "LRCLIB 服务繁忙，请稍后重试");
     }
 
     /**

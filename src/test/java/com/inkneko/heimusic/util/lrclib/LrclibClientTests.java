@@ -20,7 +20,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 /**
  * LrclibClient 单元测试：MockRestServiceServer 绑定 RestClient.Builder，无真实网络请求。
- * 覆盖正常响应解析（含未知字段容错）、404 转 null、429 转 LrclibRateLimitException（读取 Retry-After）、search 空数组。
+ * 覆盖正常响应解析（含未知字段容错）、404 转 null、429/503 转 LrclibRateLimitException（读取 Retry-After）、search 空数组。
  */
 class LrclibClientTests {
 
@@ -110,6 +110,21 @@ class LrclibClientTests {
         LrclibRateLimitException exception = assertThrows(LrclibRateLimitException.class,
                 () -> client.getBySignature("any", "any", null, null));
         assertEquals(7, exception.getRetryAfterSeconds());
+        server.verify();
+    }
+
+    @Test
+    void serverOverloaded503TreatedAsBusy() {
+        //503 ServerOverloaded（文档未记载，实测出现）：与 429 同语义，携带 Retry-After 则按其退避
+        server.expect(requestTo(containsString("/api/get")))
+                .andRespond(withServiceUnavailable()
+                        .body("{\"message\":\"The server is busy, please retry in a moment\",\"name\":\"ServerOverloaded\",\"statusCode\":503}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.RETRY_AFTER, "3"));
+
+        LrclibRateLimitException exception = assertThrows(LrclibRateLimitException.class,
+                () -> client.getBySignature("any", "any", null, null));
+        assertEquals(3, exception.getRetryAfterSeconds());
         server.verify();
     }
 

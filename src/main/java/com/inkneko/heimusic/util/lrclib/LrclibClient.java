@@ -15,7 +15,7 @@ import java.util.List;
  * <p>
  * LRCLIB 为公开歌词库，无需 API Key，但要求以 User-Agent 标识客户端；
  * 调用方须自行节流（官方建议串行请求、批量间隔 200~500ms），
- * 429 限流时本客户端抛出携带 Retry-After 的 LrclibRateLimitException，由调用方退避
+ * 429 限流与 503 过载时本客户端抛出携带 Retry-After 的 LrclibRateLimitException，由调用方退避
  */
 @Component
 public class LrclibClient {
@@ -88,14 +88,15 @@ public class LrclibClient {
 
     /**
      * 统一转换 LRCLIB 的状态码语义：404 表示曲目不存在（返回 null 而非抛错）；
-     * 429 表示限流（读取 Retry-After 转为 LrclibRateLimitException）；其余原样抛出
+     * 429 限流与 503 过载（ServerOverloaded，文档未记载、实测出现，均为"稍后重试"的瞬时态）
+     * 统一转为 LrclibRateLimitException（携带 Retry-After，缺失时由异常侧取默认值）；其余原样抛出
      */
     private <T> T handleHttpError(HttpStatusCodeException e) {
         int status = e.getStatusCode().value();
         if (status == 404) {
             return null;
         }
-        if (status == 429) {
+        if (status == 429 || status == 503) {
             HttpHeaders headers = e.getResponseHeaders();
             throw new LrclibRateLimitException(headers == null ? null : headers.getFirst(HttpHeaders.RETRY_AFTER));
         }

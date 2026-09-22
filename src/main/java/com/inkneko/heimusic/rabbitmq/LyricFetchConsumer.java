@@ -67,8 +67,8 @@ public class LyricFetchConsumer {
                 //业务性跳过：音乐不存在/已有歌词（人工数据无条件优先）等，日志已在服务层记录
                 logger.info("音乐{}的LRCLIB拉取跳过：{}", musicId, e.getMessage());
             } catch (LrclibRateLimitException e) {
-                //二次限流：已按 Retry-After 退避重试过一次，丢弃待下轮批量投放
-                logger.warn("音乐{}的LRCLIB拉取因限流两次失败，丢弃待重投", musicId);
+                //二次限流/过载（429/503）：已按 Retry-After 退避重试过一次，丢弃待下轮批量投放
+                logger.warn("音乐{}的LRCLIB拉取因限流/过载两次失败，丢弃待重投", musicId);
             } catch (Exception e) {
                 //网络异常等：与 probe 消费者语义一致，ack 丢弃，靠批量投放脚本重投；日志已在服务层记录
                 logger.error("音乐{}的LRCLIB拉取失败：", musicId, e);
@@ -91,15 +91,15 @@ public class LyricFetchConsumer {
     }
 
     /**
-     * 限流重试包装：429 时按 Retry-After 退避（上限 60 秒）后重试一次，
-     * 二次限流仍抛出 LrclibRateLimitException 由调用方丢弃处理
+     * 繁忙重试包装：限流/过载（429/503）时按 Retry-After 退避（上限 60 秒）后重试一次，
+     * 二次繁忙仍抛出 LrclibRateLimitException 由调用方丢弃处理
      */
     private LyricFetchVo fetchWithRateLimitRetry(Integer musicId) throws InterruptedException {
         try {
             return lyricFetchService.fetchFromLrclib(musicId, null, LyricFetchLog.SOURCE_MQ);
         } catch (LrclibRateLimitException e) {
             long waitSeconds = Math.min(e.getRetryAfterSeconds(), RATE_LIMIT_MAX_WAIT_SECONDS);
-            logger.warn("LRCLIB限流，{}秒后重试一次", waitSeconds);
+            logger.warn("LRCLIB繁忙（限流/过载），{}秒后重试一次", waitSeconds);
             Thread.sleep(waitSeconds * 1000L);
             return lyricFetchService.fetchFromLrclib(musicId, null, LyricFetchLog.SOURCE_MQ);
         }
