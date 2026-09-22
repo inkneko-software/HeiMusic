@@ -77,7 +77,7 @@ src/main/java/com/inkneko/heimusic/
 - **统一响应格式**：Controller 返回 `Response<T>`（`code`/`message`/`data`），成功用 `new Response<>(0, "ok", data)`；业务错误抛 `ServiceException(ErrorCode)`，由 `GlobalExceptionHanler` 统一转换为该格式。新增错误码放入对应服务的 errorcode 枚举。
 - **鉴权**：基于 cookie（`userId` + `sessionId`），会话存 Redis（`"userId:epoch"` 格式，带会话版本号：改密/全端登出自增版本号使该用户全部旧会话失效）。需要登录的接口方法上加 `@UserAuth`，管理接口加 `@UserAuth(requireRootPrivilege = true)`；方法内通过 `request.getAttribute("userId")` 取当前用户。不要引入 Spring Security——本项目刻意用拦截器实现（例外：`spring-security-crypto` 仅作为 BCrypt 加密库引入，不含 Security 过滤器/认证框架，勿移除也勿扩大使用）。防爆破限制：邮箱验证码错 5 次作废、密码登录连续失败 10 次锁 15 分钟，均由 `AuthServiceImpl` 内的 Redis 计数实现。
 - **分层**：Controller 只做参数校验与组装，业务在 Service；数据访问用 MyBatis-Plus（继承 `BaseMapper`），复杂查询写 XML（resources 下，namespace 注意包目录 `com.inkneko.heimusic.mapper`）。
-- **缓存**：Service 方法上的 `@Cacheable`/`@CacheEvict` 需成对维护；`@CachePut` 只能用于返回实体本身的方法——历史上曾因 `@CachePut` 缓存了 boolean 返回值导致 `ClassCastException`（已修复，勿回退）。
+- **缓存**：Service 方法上的 `@Cacheable`/`@CacheEvict` 需成对维护；`@CachePut` 只能用于返回实体本身的方法——历史上曾因 `@CachePut` 缓存了 boolean 返回值导致 `ClassCastException`（已修复，勿回退）。注意注解驱逐发生在事务提交前：外层事务较长时（含 REQUIRES_NEW 写入）并发读会在窗口内把旧值回填缓存，写入方法需经 `TransactionSynchronization.afterCommit` 二次驱逐兜底（先例：`LyricServiceImpl.evictAfterCommit`）。
 - **存储**：`heimusic.storage-type` 区分 `local`（本地目录，`MusicScannerJob` 仅在该模式下扫描本地目录入库）与 OSS（MinIO）；本地存储的封面/音乐文件 URL 用相对路径 `/api/v1/...`，由前端按自身 API 地址拼接，勿改回绝对 URL（会破坏局域网 IP / Electron / Capacitor 访问）。
 - **命名空间**：项目已迁移 Spring Boot 3，一律使用 `jakarta.*`，不要引入 `javax.servlet` 等旧命名空间。
 - **依赖版本注意**：springdoc 必须 ≥2.8（旧版在 Boot 3.4+ 不工作，pom 中显式覆盖了 knife4j 传递的旧版）；MySQL 驱动版本交由 Spring Boot 托管。

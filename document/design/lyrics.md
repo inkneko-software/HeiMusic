@@ -67,6 +67,8 @@ HeiMusic 歌词功能设计
 
 删除类操作的 musicId 需查库获得，且 removeByMusicId 需逐条清理 lyric 缓存，注解无法表达，故在 `LyricServiceImpl.evictLyricCaches` 手动驱逐（CacheManager），其余走注解。
 
+**驱逐时机与提交后兜底**：注解式 `@CacheEvict` 在方法返回时（事务提交前）执行。批量拉取场景实测踩中：外层 `fetchFromLrclib` 事务（含 REQUIRES_NEW 日志写入）提交前的窗口内，用户并发调 `getList` 会把旧列表回填 `lyricList` 缓存，提交后无人再驱逐，脏缓存长期驻留（数据库有歌词、接口返回空数组）。修复：`addLyric` 与拉取的 instrumental 联动在写库后经 `TransactionSynchronization.afterCommit` 二次驱逐（`evictAfterCommit`，无活动事务时直接驱逐），注解驱逐保留（职责成对可见，与本兜底幂等）。其余写路径（updateLyric/removeLyric/音乐侧注解驱逐）窗口极小、维持注解即好。
+
 ## 6. LRCLIB 数据源事实（2026-09-21 实测核实）
 
 拉取功能的设计输入。LRCLIB 公开访问，无需 API Key。
