@@ -37,6 +37,8 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.Serializable;
 import java.util.List;
@@ -125,6 +127,9 @@ public class LyricServiceImpl extends ServiceImpl<LyricMapper, Lyric> implements
         } catch (DuplicateKeyException e) {
             throw new ServiceException(LyricServiceErrorCode.LYRIC_ALREADY_EXISTS);
         }
+        //提交后兜底驱逐：注解驱逐于方法返回时（事务提交前）执行，批量拉取场景下
+        //提交前的窗口内并发读会把旧列表回填缓存、提交后无人再驱逐，脏缓存长期驻留
+        evictAfterCommit(() -> evictLyricCaches(null, musicId));
         return lyric;
     }
 
@@ -319,6 +324,13 @@ public class LyricServiceImpl extends ServiceImpl<LyricMapper, Lyric> implements
         //纯音乐联动：仅当前为未知(NULL)时采信 LRCLIB，不覆盖人工标注；无数据(404)路径不触碰该列
         if (lockedMusic.getIsInstrumental() == null && track.getInstrumental() != null) {
             musicService.updateInstrumental(musicId, track.getInstrumental());
+            //提交后兜底驱逐 music 缓存，理由同 addLyric（updateInstrumental 的注解驱逐在提交前执行）
+            evictAfterCommit(() -> {
+                Cache musicCache = cacheManager.getCache("music");
+                if (musicCache != null) {
+                    musicCache.evict(musicId);
+                }
+            });
         }
         if (Boolean.TRUE.equals(track.getInstrumental())) {
             lyricFetchLogService.record(source, musicId, LyricFetchLog.OUTCOME_INSTRUMENTAL, "LRCLIB标记为纯音乐");
@@ -473,6 +485,30 @@ public class LyricServiceImpl extends ServiceImpl<LyricMapper, Lyric> implements
             if (lyricListCache != null) {
                 lyricListCache.evict(musicId);
             }
+        }
+    }
+
+    /**
+     * 注册事务提交后的缓存驱逐兜底
+     * <p>
+     * 注解式驱逐在事务提交前执行：批量拉取场景下外层事务（含 REQUIRES_NEW 日志写入）
+     * 提交前的窗口内，并发读会把旧值重新填入缓存，提交后无人再驱逐、脏缓存长期驻留
+     * （实测：扫描期间用户连续播放踩中，getList 对新入库歌词返回空数组）。
+     * 提交后二次驱逐消除该窗口；无活动事务时直接驱逐（防御性兜底）。
+     * 注解驱逐保留：职责成对可见，与本兜底幂等
+     *
+     * @param evict 驱逐动作，提交后执行
+     */
+    private void evictAfterCommit(Runnable evict) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    evict.run();
+                }
+            });
+        } else {
+            evict.run();
         }
     }
 
