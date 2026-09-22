@@ -35,5 +35,23 @@ public class HeiMusicConfig {
     @Value("${heimusic.secure-cookie:false}")
     private boolean secureCookie;
 
+    /**
+     * LRCLIB 歌词数据源 API 地址
+     */
+    @Value("${heimusic.lrclib.base-url:https://lrclib.net}")
+    private String lrclibBaseUrl;
+
+    /**
+     * LRCLIB 要求客户端以 User-Agent 标识应用（应用名 + 项目地址），缺失可能被拒绝服务
+     */
+    @Value("${heimusic.lrclib.user-agent:HeiMusic (https://github.com/leaf-lxh/heimusic)}")
+    private String lrclibUserAgent;
+
+    @Value("${heimusic.lrclib.connect-timeout-millis:5000}")
+    private int lrclibConnectTimeoutMillis;
+
+    @Value("${heimusic.lrclib.read-timeout-millis:10000}")
+    private int lrclibReadTimeoutMillis;
+
 
 }

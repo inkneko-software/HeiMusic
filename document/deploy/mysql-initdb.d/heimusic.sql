@@ -115,6 +115,15 @@ CREATE TABLE IF NOT EXISTS lyric(
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE(music_id, locale)
 )Engine=InnoDB default charset=utf8mb4;
+CREATE TABLE IF NOT EXISTS lyric_fetch_log(
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '日志id',
+    music_id INT NULL COMMENT '音乐id，消息解析失败等场景可为空',
+    source VARCHAR(16) NOT NULL COMMENT '来源：manual=手动接口 / mq=批量任务',
+    outcome VARCHAR(16) NOT NULL COMMENT '结局：created=已创建歌词 / instrumental=纯音乐 / not_found=暂无曲目 / skipped=跳过（已有歌词等） / failed=失败',
+    detail VARCHAR(512) NULL COMMENT '补充信息：locale、错误摘要等',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX(music_id)
+)Engine=InnoDB default charset=utf8mb4;
 CREATE TABLE IF NOT EXISTS music_favorite(
     music_id INT NOT NULL COMMENT '音乐id',
     user_id INT NOT NULL COMMENT '用户id',

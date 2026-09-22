@@ -36,12 +36,22 @@ public class RabbitMQConfig {
         public static final String routingKey = "split.musicId.%s";
     }
 
+    public static class LyricFetch {
+        public static final String queueName = "lyric-queue";
+        //routingKey，参数为音乐ID
+        public static final String routingKey = "lyric.musicId.%s";
+    }
+
     @Value("${heimusic.is-encode-node}")
     public boolean isEncodeNode;
 
     @Bean
     public Jackson2JsonMessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        //信任 MQ 消息模型所在包：消费端 DefaultJackson2JavaTypeMapper 默认仅信任 java.util/java.lang，
+        //消息头 __TypeId__ 携带的应用类（如 LyricFetchRequest/ProbeRequest）会被拒绝反序列化，
+        //导致 ListenerExecutionFailedException: Failed to convert message（消息被 ConditionalRejectingErrorHandler 丢弃）。
+        //注意 3.2.x 的信任匹配是包名全等（无前缀/通配），必须精确到子包
+        return new Jackson2JsonMessageConverter("com.inkneko.heimusic.rabbitmq.model");
     }
 
     @Bean
@@ -78,6 +88,16 @@ public class RabbitMQConfig {
     @Bean
     Binding splitBinding(@Qualifier("splitQueue") Queue queue, TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(String.format(Split.routingKey, "#"));
+    }
+
+    @Bean
+    Queue lyricQueue() {
+        return new Queue(LyricFetch.queueName, true);
+    }
+
+    @Bean
+    Binding lyricBinding(@Qualifier("lyricQueue") Queue queue, TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(String.format(LyricFetch.routingKey, "#"));
     }
 
 

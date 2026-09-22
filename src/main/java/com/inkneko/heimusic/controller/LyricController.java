@@ -1,14 +1,18 @@
 package com.inkneko.heimusic.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.inkneko.heimusic.annotation.auth.UserAuth;
 import com.inkneko.heimusic.errorcode.LyricServiceErrorCode;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.dto.AddLyricDto;
 import com.inkneko.heimusic.model.dto.UpdateLyricDto;
 import com.inkneko.heimusic.model.entity.Lyric;
+import com.inkneko.heimusic.model.entity.LyricFetchLog;
 import com.inkneko.heimusic.model.entity.Music;
+import com.inkneko.heimusic.model.vo.LyricFetchVo;
 import com.inkneko.heimusic.model.vo.LyricVo;
 import com.inkneko.heimusic.model.vo.Response;
+import com.inkneko.heimusic.service.LyricFetchLogService;
 import com.inkneko.heimusic.service.LyricService;
 import com.inkneko.heimusic.service.MusicService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,10 +28,13 @@ public class LyricController {
 
     LyricService lyricService;
     MusicService musicService;
+    LyricFetchLogService lyricFetchLogService;
 
-    public LyricController(LyricService lyricService, MusicService musicService) {
+    public LyricController(LyricService lyricService, MusicService musicService,
+                           LyricFetchLogService lyricFetchLogService) {
         this.lyricService = lyricService;
         this.musicService = musicService;
+        this.lyricFetchLogService = lyricFetchLogService;
     }
 
     @Operation(summary = "添加歌词", description = "同一音乐同一语言（locale）仅允许一份；翻译=另一条locale记录")
@@ -93,6 +100,39 @@ public class LyricController {
             throw new ServiceException(LyricServiceErrorCode.LYRIC_NOT_FOUND);
         }
         return new Response<>(0, "ok", toVo(lyric));
+    }
+
+    @Operation(summary = "从LRCLIB拉取歌词",
+            description = "仅服务无歌词的音乐，人工数据无条件优先。outcome：created=已创建歌词（lyric字段非空）/"
+                    + "instrumental=LRCLIB标记纯音乐/not_found=LRCLIB暂无该曲目（后台会补录，可重试）。"
+                    + "locale不传时按歌词文本自动判定语言，无法判定存und")
+    @PostMapping("/fetchFromLrclib")
+    @UserAuth(requireRootPrivilege = true)
+    public Response<LyricFetchVo> fetchFromLrclib(@RequestParam Integer musicId,
+                                                  @RequestParam(required = false) String locale) {
+        return new Response<>(0, "ok", lyricService.fetchFromLrclib(musicId, locale, LyricFetchLog.SOURCE_MANUAL));
+    }
+
+    @Operation(summary = "一键扫描缺失歌词",
+            description = "查询全部无歌词且非纯音乐的音乐，投放批量拉取队列（消费端以2秒/首串行执行，"
+                    + "不覆盖已有歌词）。60秒节流窗口内重复调用返回5006。data=本次投放的音乐数")
+    @PostMapping("/scanMissingLyric")
+    @UserAuth(requireRootPrivilege = true)
+    public Response<Integer> scanMissingLyric() {
+        return new Response<>(0, "ok", lyricService.scanMissingLyric());
+    }
+
+    @Operation(summary = "分页查询歌词拉取任务日志",
+            description = "按时间倒序，记录每次拉取尝试的结局（含批量任务与手动拉取）。"
+                    + "outcome：created=已创建歌词/instrumental=纯音乐/not_found=暂无曲目/"
+                    + "skipped=跳过（已有歌词等）/failed=失败")
+    @GetMapping("/fetchLog/list")
+    @UserAuth(requireRootPrivilege = true)
+    public Response<Page<LyricFetchLog>> fetchLogList(@RequestParam(defaultValue = "1") long page,
+                                                      @RequestParam(defaultValue = "20") long pageSize,
+                                                      @RequestParam(required = false) Integer musicId,
+                                                      @RequestParam(required = false) String outcome) {
+        return new Response<>(0, "ok", lyricFetchLogService.getLogs(page, pageSize, musicId, outcome));
     }
 
     /**

@@ -49,6 +49,8 @@ heimusic:
     accessKey: user
     secretKey: password
   is-encode-node: false
+  # 与 is-encode-node 同理：测试环境不消费 lyric-queue，避免测试上下文启动拉取消费者
+  is-lyric-fetch-node: false
 
 springdoc:
   api-docs:

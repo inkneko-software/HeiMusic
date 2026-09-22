@@ -62,6 +62,15 @@ heimusic:
     accessKey: example_ak
     secretKey: example_sk
   is-encode-node: true
+  # LRCLIB 歌词拉取节点开关：仅开启的节点消费 lyric-queue（多实例部署时只开一个，避免放大 LRCLIB 请求速率）
+  is-lyric-fetch-node: true
+  lrclib:
+    # LRCLIB API 地址（公开服务，无需 API Key）
+    base-url: https://lrclib.net
+    # LRCLIB 要求客户端以 User-Agent 标识应用（应用名 + 项目地址/联系方式）
+    user-agent: "HeiMusic (https://github.com/leaf-lxh/heimusic)"
+    connect-timeout-millis: 5000
+    read-timeout-millis: 10000
 
 springdoc:
   swagger-ui:
