@@ -1,6 +1,7 @@
 package com.inkneko.heimusic.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.inkneko.heimusic.errorcode.LyricServiceErrorCode;
@@ -14,6 +15,7 @@ import com.inkneko.heimusic.model.entity.AlbumMusic;
 import com.inkneko.heimusic.model.entity.Lyric;
 import com.inkneko.heimusic.model.entity.LyricFetchLog;
 import com.inkneko.heimusic.model.entity.Music;
+import com.inkneko.heimusic.model.vo.LyricCoverageVo;
 import com.inkneko.heimusic.model.vo.LyricFetchVo;
 import com.inkneko.heimusic.model.vo.LyricVo;
 import com.inkneko.heimusic.config.RabbitMQConfig;
@@ -376,6 +378,20 @@ public class LyricServiceImpl extends ServiceImpl<LyricMapper, Lyric> implements
             amqpTemplate.convertAndSend(RabbitMQConfig.topicExchangeName, RabbitMQConfig.LyricFetch.routingKey, request);
         }
         return targets.size();
+    }
+
+    /**
+     * 歌词覆盖率统计
+     * <p>
+     * 有歌词的音乐数按 DISTINCT music_id 计（同音乐多语言/翻译仅计一次），
+     * 仅取 music_id 列做 selectObjs，避免把 content 大字段加载进内存
+     */
+    @Override
+    public LyricCoverageVo getLyricCoverage() {
+        long totalMusicCount = musicService.count();
+        QueryWrapper<Lyric> wrapper = new QueryWrapper<Lyric>().select("DISTINCT music_id");
+        long lyricMusicCount = listObjs(wrapper).size();
+        return new LyricCoverageVo(totalMusicCount, lyricMusicCount);
     }
 
     /**

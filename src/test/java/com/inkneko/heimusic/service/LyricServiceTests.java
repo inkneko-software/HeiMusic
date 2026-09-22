@@ -4,6 +4,7 @@ import com.inkneko.heimusic.errorcode.LyricServiceErrorCode;
 import com.inkneko.heimusic.exception.ServiceException;
 import com.inkneko.heimusic.model.entity.Lyric;
 import com.inkneko.heimusic.model.entity.Music;
+import com.inkneko.heimusic.model.vo.LyricCoverageVo;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -193,5 +194,19 @@ class LyricServiceTests {
         //清除标记回到未知态
         musicService.updateInstrumental(music.getMusicId(), null);
         assertNull(musicService.getById(music.getMusicId()).getIsInstrumental());
+    }
+
+    @Test
+    void getLyricCoverageCountsDistinctMusic() {
+        LyricCoverageVo before = lyricService.getLyricCoverage();
+
+        Music music = createMusic("覆盖率统计测试-" + UUID.randomUUID());
+        createLyric(music, "ja");
+        //同音乐多语言仅计一次
+        createLyric(music, "zh-cn");
+
+        LyricCoverageVo after = lyricService.getLyricCoverage();
+        assertEquals(before.getTotalMusicCount() + 1, after.getTotalMusicCount());
+        assertEquals(before.getLyricMusicCount() + 1, after.getLyricMusicCount());
     }
 }

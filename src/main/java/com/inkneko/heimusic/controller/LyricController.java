@@ -9,6 +9,7 @@ import com.inkneko.heimusic.model.dto.UpdateLyricDto;
 import com.inkneko.heimusic.model.entity.Lyric;
 import com.inkneko.heimusic.model.entity.LyricFetchLog;
 import com.inkneko.heimusic.model.entity.Music;
+import com.inkneko.heimusic.model.vo.LyricCoverageVo;
 import com.inkneko.heimusic.model.vo.LyricFetchVo;
 import com.inkneko.heimusic.model.vo.LyricVo;
 import com.inkneko.heimusic.model.vo.Response;
@@ -120,6 +121,14 @@ public class LyricController {
     @UserAuth(requireRootPrivilege = true)
     public Response<Integer> scanMissingLyric() {
         return new Response<>(0, "ok", lyricService.scanMissingLyric());
+    }
+
+    @Operation(summary = "歌词覆盖率统计",
+            description = "返回音乐总数与有歌词的音乐数（同音乐多语言仅计一次），用于歌词拉取进度展示")
+    @GetMapping("/getCoverage")
+    @UserAuth(requireRootPrivilege = true)
+    public Response<LyricCoverageVo> getCoverage() {
+        return new Response<>(0, "ok", lyricService.getLyricCoverage());
     }
 
     @Operation(summary = "分页查询歌词拉取任务日志",

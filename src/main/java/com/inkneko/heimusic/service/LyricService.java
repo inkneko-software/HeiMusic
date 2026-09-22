@@ -2,6 +2,7 @@ package com.inkneko.heimusic.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.inkneko.heimusic.model.entity.Lyric;
+import com.inkneko.heimusic.model.vo.LyricCoverageVo;
 import com.inkneko.heimusic.model.vo.LyricFetchVo;
 
 import java.util.List;
@@ -93,4 +94,12 @@ public interface LyricService extends IService<Lyric> {
      * @return 本次投放的音乐数
      */
     int scanMissingLyric();
+
+    /**
+     * 歌词覆盖率统计：音乐总数与有歌词的音乐数（同音乐多语言仅计一次），
+     * 用于管理端展示歌词拉取进度
+     *
+     * @return 覆盖率统计
+     */
+    LyricCoverageVo getLyricCoverage();
 }
