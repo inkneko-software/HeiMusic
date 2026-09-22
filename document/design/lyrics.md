@@ -195,7 +195,11 @@ HeiMusic 歌词功能设计
 - 查询接口：`GET /api/v1/lyric/fetchLog/list?page=&pageSize=&musicId=&outcome=`，管理权限，MyBatis-Plus `Page` 按 id 倒序，musicId/outcome 可选过滤
 - 保留策略：暂不做定时清理——单曲通常仅一条记录、增长缓慢；需要治理时再补定时任务
 
-### 8.6 测试
+### 8.6 覆盖率统计接口
+
+`GET /api/v1/lyric/getCoverage`（管理权限，无参数），返回 `LyricCoverageVo`：`totalMusicCount`（音乐总数）+ `lyricMusicCount`（有歌词的音乐数，`DISTINCT music_id` 计算，同音乐多语言仅计一次）。用于管理端展示歌词拉取进度，只读统计不走缓存；实现上仅取 `music_id` 列 selectObjs，避免加载 content 大字段。
+
+### 8.7 测试
 
 - `LyricLanguageDetectorTests`：纯单测（混唱投票、时间戳剥离、und 兜底），无基础设施依赖（CueParser 先例）
 - `LrclibClientTests`：`MockRestServiceServer.bindTo(RestClient.Builder)`（spring-test 自带，无新依赖）——正常响应 / 404 / 429 + Retry-After / search 空数组

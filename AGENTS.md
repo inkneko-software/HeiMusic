@@ -37,7 +37,7 @@ Windows 下使用 `mvnw.cmd`；本项目在 Windows + Git Bash 环境开发，�
 
 - **运行依赖**：MySQL、Redis、RabbitMQ 必须可用才能启动应用；编码节点还需要 `ffmpeg`/`ffprobe` 在 PATH 中。
 - **profile**：`dev`（本地开发，连 localhost，本地文件存储）、`test`（集成测试）、生产配置见 `application-example.yaml`。
-- **测试**（`src/test/java`，97 个用例，其中 2 个 `@Disabled`）：
+- **测试**（`src/test/java`，98 个用例，其中 2 个 `@Disabled`）：
   - test profile 使用独立的 `heimusic_test` 库（需先导入 `document/database/heimusic.sql`），DB 变更按事务回滚，Redis 键定向清理，不污染开发数据。
   - `CueParser` / `MusicScanner` 为纯单元测试（TempDir 生成样例文件）；`ffprobe` 缺失时优雅跳过。`LyricLanguageDetectorTests` / `LrclibClientTests` 亦为纯单元测试（后者经 `MockRestServiceServer` 模拟 HTTP）。
   - `ProbeConsumerTests` / `LyricFetchProducerTests` 标注 `@Disabled`，是手动运维脚本。
