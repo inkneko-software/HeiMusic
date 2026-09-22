@@ -92,3 +92,4 @@ src/main/java/com/inkneko/heimusic/
 - 数据库表结构变更只需修改基准文档 `document/database/heimusic.md`，然后用文档头部的命令重新生成 `heimusic.sql` 并复制到 `document/deploy/mysql-initdb.d/`；两处 SQL 均为生成物，勿手改。
 - 生成物 `heimusic.sql` 只适用于全新环境（initdb 或新库首导）。对**存量库**做增量同步时，直接导入全量文件会被文件头部的 `CREATE USER`/`CREATE DATABASE` 卡住（mysql 批处理遇错即停），应抽取对应表的 `CREATE TABLE` 段落单独执行；涉及已有表加列则需手写 `ALTER TABLE`。
 - MQ 消息模型类统一放 `rabbitmq/model` 包：Jackson 转换器仅信任该包（spring-amqp 3.2.x 的信任匹配是**包名全等**，无前缀/通配），放别处的应用类会在消费端反序列化时被拒、消息被 `ConditionalRejectingErrorHandler` 直接丢弃（见 `RabbitMQConfigTests` 回归）。
+- **缓存提供者必须显式声明** `spring.cache.type: redis`：redisson 的 jar 内嵌 JCache(JSR-107) provider（ServiceLoader 注册），Boot 缓存自动探测顺序 JCache 先于 Redis，`type` 缺省时 JCacheCacheManager 抢先生效，而其对未预配置的缓存名返回 null——启动不报错，首个 `@Cacheable` 请求抛 `Cannot find cache named 'xxx'`。所有环境（dev/test/生产）都需配置。

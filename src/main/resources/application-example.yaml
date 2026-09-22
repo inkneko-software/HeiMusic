@@ -12,6 +12,10 @@ spring:
     redis:
       host: redis
       port: 6379
+  cache:
+    # 显式指定 Redis：redisson 自带 JCache(JSR-107) provider，缺省自动探测会被 JCache 抢占，
+    # 其 CacheManager 对未预配置的缓存名返回 null，首个 @Cacheable 请求即抛 Cannot find cache
+    type: redis
   rabbitmq:
     host: rabbitmq
     port: 5672
