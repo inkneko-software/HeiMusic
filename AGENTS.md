@@ -83,6 +83,7 @@ src/main/java/com/inkneko/heimusic/
 - **依赖版本注意**：springdoc 必须 ≥2.8（旧版在 Boot 3.4+ 不工作，pom 中显式覆盖了 knife4j 传递的旧版）；MySQL 驱动版本交由 Spring Boot 托管。
 - **代码风格**：Lombok（`@Data` 等）、构造器注入（无 `@Autowired` 注解）、注释与日志用中文。
 - **提交信息**：Conventional Commits 风格 + 中文描述，如 `feat: 添加xx`、`fix: 修复xx`、`test:`、`chore:`，重要改动在正文列出要点。
+- **版本号**：发布版本时同时修改两处——`pom.xml` 的项目 `<version>` 与 `HeiMusicApplication` 上 `@OpenAPIDefinition` 的 `@Info(version)`（swagger 文档页展示），勿只改其一。
 
 ## 已知坑
 

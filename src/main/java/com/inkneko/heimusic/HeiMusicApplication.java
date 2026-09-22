@@ -8,7 +8,7 @@ import org.springframework.cache.annotation.EnableCaching;
 
 @EnableCaching
 @SpringBootApplication
-@OpenAPIDefinition(info = @Info(description = "HeiMusic! 服务端API说明", version = "0.2.1"))
+@OpenAPIDefinition(info = @Info(description = "HeiMusic! 服务端API说明", version = "0.6.1"))
 public class HeiMusicApplication {
 
     public static void main(String[] args) {
