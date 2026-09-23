@@ -37,7 +37,7 @@ Windows 下使用 `mvnw.cmd`；本项目在 Windows + Git Bash 环境开发，�
 
 - **运行依赖**：MySQL、Redis、RabbitMQ 必须可用才能启动应用；编码节点还需要 `ffmpeg`/`ffprobe` 在 PATH 中。
 - **profile**：`dev`（本地开发，连 localhost，本地文件存储）、`test`（集成测试）、生产配置见 `application-example.yaml`。
-- **测试**（`src/test/java`，98 个用例，其中 2 个 `@Disabled`）：
+- **测试**（`src/test/java`，102 个用例，其中 2 个 `@Disabled`）：
   - test profile 使用独立的 `heimusic_test` 库（需先导入 `document/database/heimusic.sql`），DB 变更按事务回滚，Redis 键定向清理，不污染开发数据。
   - `CueParser` / `MusicScanner` 为纯单元测试（TempDir 生成样例文件）；`ffprobe` 缺失时优雅跳过。`LyricLanguageDetectorTests` / `LrclibClientTests` 亦为纯单元测试（后者经 `MockRestServiceServer` 模拟 HTTP）。
   - `ProbeConsumerTests` / `LyricFetchProducerTests` 标注 `@Disabled`，是手动运维脚本。
@@ -94,3 +94,4 @@ src/main/java/com/inkneko/heimusic/
 - 生成物 `heimusic.sql` 只适用于全新环境（initdb 或新库首导）。对**存量库**做增量同步时，直接导入全量文件会被文件头部的 `CREATE USER`/`CREATE DATABASE` 卡住（mysql 批处理遇错即停），应抽取对应表的 `CREATE TABLE` 段落单独执行；涉及已有表加列则需手写 `ALTER TABLE`。
 - MQ 消息模型类统一放 `rabbitmq/model` 包：Jackson 转换器仅信任该包（spring-amqp 3.2.x 的信任匹配是**包名全等**，无前缀/通配），放别处的应用类会在消费端反序列化时被拒、消息被 `ConditionalRejectingErrorHandler` 直接丢弃（见 `RabbitMQConfigTests` 回归）。
 - **缓存提供者必须显式声明** `spring.cache.type: redis`：redisson 的 jar 内嵌 JCache(JSR-107) provider（ServiceLoader 注册），Boot 缓存自动探测顺序 JCache 先于 Redis，`type` 缺省时 JCacheCacheManager 抢先生效，而其对未预配置的缓存名返回 null——启动不报错，首个 `@Cacheable` 请求抛 `Cannot find cache named 'xxx'`。所有环境（dev/test/生产）都需配置。
+- **Redis 缓存值序列化必须用 `CacheConfig` 的 JSON 序列化器，勿回退 Boot 默认 JDK 序列化**：devtools 热部署下 jar 内反序列化器解析实体类走 app 加载器、项目类走 RestartClassLoader，缓存命中即抛 "X cannot be cast to X"（同类双加载器）；JDK 序列化还绑定类结构，实体演进会使存量缓存全部失效。JSON 序列化的 default typing 须为 `EVERYTHING`（缓存值含 boolean/Long 等 final 包装类型，`NON_FINAL` 下 Long 读回变 Integer 又是 CCE）。换序列化器会使 Redis 里的旧 JDK 序列化键不可读，需清理 `*::*` 格式的存量缓存键。
