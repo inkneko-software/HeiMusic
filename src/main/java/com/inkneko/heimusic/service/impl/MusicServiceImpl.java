@@ -47,7 +47,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param id 主键ID
      */
     @Override
-    @Cacheable(cacheNames = "music", key = "#id")
+    @Cacheable(cacheNames = "music", key = "#id", unless = "#result == null")
     public Music getById(Serializable id) {
         return super.getById(id);
     }
@@ -100,7 +100,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @return 音乐资源
      */
     @Override
-    @Cacheable(cacheNames = "musicResource", key = "#resourceId")
+    @Cacheable(cacheNames = "musicResource", key = "#resourceId", unless = "#result == null")
     public MusicResource getMusicResource(Integer resourceId) {
         return musicResourceMapper.selectById(resourceId);
     }

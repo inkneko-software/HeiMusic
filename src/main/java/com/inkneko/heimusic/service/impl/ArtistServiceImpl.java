@@ -34,7 +34,7 @@ public class ArtistServiceImpl extends ServiceImpl<ArtistMapper, Artist> impleme
      * @param id 主键ID
      */
     @Override
-    @Cacheable(cacheNames = "artist", key = "#id")
+    @Cacheable(cacheNames = "artist", key = "#id", unless = "#result == null")
     public Artist getById(Serializable id) {
         return super.getById(id);
     }

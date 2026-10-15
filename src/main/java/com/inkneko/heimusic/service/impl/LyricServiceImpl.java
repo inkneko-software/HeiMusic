@@ -44,7 +44,7 @@ public class LyricServiceImpl extends ServiceImpl<LyricMapper, Lyric> implements
      * @param id 歌词id
      */
     @Override
-    @Cacheable(cacheNames = "lyric", key = "#id")
+    @Cacheable(cacheNames = "lyric", key = "#id", unless = "#result == null")
     public Lyric getById(Serializable id) {
         return super.getById(id);
     }

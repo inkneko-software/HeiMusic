@@ -197,7 +197,7 @@ public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements
      * @param id 主键ID
      */
     @Override
-    @Cacheable(cacheNames = "album", key = "#id")
+    @Cacheable(cacheNames = "album", key = "#id", unless = "#result == null")
     public Album getById(Serializable id) {
         return super.getById(id);
     }
